@@ -35,7 +35,6 @@ interface GuideStep {
   icon: React.ElementType;
   path: string;
   buttonLabel: Record<Lang, string>;
-  image: Record<Lang, string>;
   instructions: Record<Lang, string[]>;
 }
 
@@ -57,7 +56,6 @@ const steps: GuideStep[] = [
     icon: Users,
     path: "/membros",
     buttonLabel: { pt: "Acessar Membros", en: "Go to Members" },
-    image: { pt: "/guide/pt/step1-membros.png", en: "/guide/step1-membros.png" },
     instructions: {
       pt: [
         "Acesse o menu 'Membros' na barra lateral esquerda",
@@ -92,7 +90,6 @@ const steps: GuideStep[] = [
     icon: Church,
     path: "/ministerios",
     buttonLabel: { pt: "Acessar Ministérios", en: "Go to Ministries" },
-    image: { pt: "/guide/pt/step2-ministerios.png", en: "/guide/step2-ministerios.png" },
     instructions: {
       pt: [
         "Acesse o menu 'Ministérios' na barra lateral esquerda",
@@ -127,7 +124,6 @@ const steps: GuideStep[] = [
     icon: CalendarClock,
     path: "/eventos-padroes",
     buttonLabel: { pt: "Acessar Modelos", en: "Go to Templates" },
-    image: { pt: "/guide/pt/step3-templates.png", en: "/guide/step3-templates.png" },
     instructions: {
       pt: [
         "Acesse 'Modelos de Atividades' no menu lateral",
@@ -164,7 +160,6 @@ const steps: GuideStep[] = [
     icon: Calendar,
     path: "/agenda",
     buttonLabel: { pt: "Acessar Agenda", en: "Go to Calendar" },
-    image: { pt: "/guide/pt/step4-agenda.png", en: "/guide/step4-agenda.png" },
     instructions: {
       pt: [
         "Acesse a 'Agenda' no menu lateral esquerdo",
@@ -201,7 +196,6 @@ const steps: GuideStep[] = [
     icon: MessageCircle,
     path: "/configuracoes/whatsapp",
     buttonLabel: { pt: "Configurar WhatsApp", en: "Set Up WhatsApp" },
-    image: { pt: "/guide/pt/step5-whatsapp.png", en: "/guide/step5-whatsapp.png" },
     instructions: {
       pt: [
         "Acesse 'Configurar WhatsApp' no menu de seu perfil (rodapé lateral)",
@@ -238,7 +232,6 @@ const steps: GuideStep[] = [
     icon: Settings,
     path: "/configuracoes/lembretes",
     buttonLabel: { pt: "Configurar Lembretes", en: "Set Up Reminders" },
-    image: { pt: "/guide/pt/step6-lembretes.png", en: "/guide/step6-lembretes.png" },
     instructions: {
       pt: [
         "Acesse 'Configurar Lembretes' no menu de seu perfil",
@@ -275,7 +268,6 @@ const steps: GuideStep[] = [
     icon: Megaphone,
     path: "/mural",
     buttonLabel: { pt: "Acessar Mural", en: "Go to Board" },
-    image: { pt: "/guide/pt/step7-mural.png", en: "/guide/step7-mural.png" },
     instructions: {
       pt: [
         "Acesse o 'Mural' no menu lateral esquerdo",
@@ -312,7 +304,6 @@ const steps: GuideStep[] = [
     icon: ListTodo,
     path: "/meus-quadros",
     buttonLabel: { pt: "Acessar Quadros", en: "Go to Boards" },
-    image: { pt: "/guide/pt/step8-tarefas.png", en: "/guide/step8-tarefas.png" },
     instructions: {
       pt: [
         "Acesse 'Tarefas' no menu lateral esquerdo",
@@ -494,16 +485,6 @@ const GettingStartedGuide = () => {
                         <span className="font-semibold text-foreground">{t.whyImportant} </span>
                         {step.why[lang]}
                       </p>
-                    </div>
-
-                    {/* Image */}
-                    <div className="rounded-lg overflow-hidden border bg-muted/30">
-                      <img
-                        src={step.image[lang]}
-                        alt={`${lang === "pt" ? "Ilustração" : "Screenshot"}: ${step.title[lang]}`}
-                        className="w-full h-auto object-cover"
-                        loading="lazy"
-                      />
                     </div>
 
                     {/* Instructions */}
