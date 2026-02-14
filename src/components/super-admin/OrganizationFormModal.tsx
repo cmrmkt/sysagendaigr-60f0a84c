@@ -617,8 +617,12 @@ const OrganizationFormModal = ({
                             <Input 
                               type={showPassword ? "text" : "password"}
                               value={newPassword}
-                              placeholder="Clique em 'Gerar' para criar nova senha"
-                              readOnly
+                              onChange={(e) => {
+                                setNewPassword(e.target.value);
+                                setPasswordReset(false);
+                                setCopied(false);
+                              }}
+                              placeholder="Digite ou clique em 'Gerar'"
                               className="pr-10 font-mono bg-muted/50 shadow-sm"
                             />
                             {newPassword && (
