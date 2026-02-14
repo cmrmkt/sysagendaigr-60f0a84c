@@ -1,0 +1,177 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+interface CheckStatusPayload {
+  organization_id: string;
+}
+
+interface ConnectionStateResponse {
+  instance?: {
+    instanceName: string;
+    state: string;
+    owner?: string;
+    profileName?: string;
+    profilePictureUrl?: string;
+  };
+  error?: string;
+  message?: string;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const globalEvolutionUrl = Deno.env.get("GLOBAL_EVOLUTION_API_URL");
+    const globalEvolutionKey = Deno.env.get("GLOBAL_EVOLUTION_API_KEY");
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    if (!globalEvolutionUrl || !globalEvolutionKey) {
+      return new Response(
+        JSON.stringify({ 
+          error: "WhatsApp não configurado pelo administrador do sistema",
+          code: "GLOBAL_CONFIG_MISSING"
+        }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const payload: CheckStatusPayload = await req.json();
+    const { organization_id } = payload;
+
+    if (!organization_id) {
+      return new Response(
+        JSON.stringify({ error: "organization_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Fetch organization data
+    const { data: org, error: orgError } = await supabase
+      .from("organizations")
+      .select("evolution_instance_name, whatsapp_connected, whatsapp_phone_number")
+      .eq("id", organization_id)
+      .single();
+
+    if (orgError || !org) {
+      return new Response(
+        JSON.stringify({ error: "Organização não encontrada" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!org.evolution_instance_name) {
+      return new Response(
+        JSON.stringify({ 
+          connected: false,
+          state: "not_created",
+          message: "Instância não criada"
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check connection state on Evolution API
+    const evolutionUrl = `${globalEvolutionUrl}/instance/connectionState/${org.evolution_instance_name}`;
+    
+    console.log("Checking connection state:", evolutionUrl);
+    
+    const response = await fetch(evolutionUrl, {
+      method: "GET",
+      headers: {
+        "apikey": globalEvolutionKey,
+      },
+    });
+
+    const responseData = await response.json() as ConnectionStateResponse;
+    console.log("Connection state response:", JSON.stringify(responseData));
+
+    if (!response.ok) {
+      // If instance not found, it was deleted or never created properly
+      if (response.status === 404) {
+        await supabase
+          .from("organizations")
+          .update({
+            evolution_instance_name: null,
+            whatsapp_connected: false,
+            whatsapp_connected_at: null,
+            whatsapp_phone_number: null,
+          })
+          .eq("id", organization_id);
+
+        return new Response(
+          JSON.stringify({
+            connected: false,
+            state: "not_found",
+            message: "Instância não encontrada",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ 
+          error: responseData.message || "Erro ao verificar status",
+          state: "error"
+        }),
+        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const state = responseData.instance?.state || "unknown";
+    const isConnected = state === "open";
+
+    // Update organization if state changed
+    if (isConnected && !org.whatsapp_connected) {
+      const phoneNumber = responseData.instance?.owner?.replace("@s.whatsapp.net", "") || null;
+      
+      await supabase
+        .from("organizations")
+        .update({
+          whatsapp_connected: true,
+          whatsapp_connected_at: new Date().toISOString(),
+          whatsapp_phone_number: phoneNumber,
+        })
+        .eq("id", organization_id);
+
+      console.log(`Organization ${organization_id} WhatsApp connected: ${phoneNumber}`);
+    } else if (!isConnected && org.whatsapp_connected) {
+      // Connection was lost
+      await supabase
+        .from("organizations")
+        .update({
+          whatsapp_connected: false,
+        })
+        .eq("id", organization_id);
+
+      console.log(`Organization ${organization_id} WhatsApp disconnected`);
+    }
+
+    return new Response(
+      JSON.stringify({
+        connected: isConnected,
+        state: state,
+        phoneNumber: responseData.instance?.owner?.replace("@s.whatsapp.net", ""),
+        profileName: responseData.instance?.profileName,
+        profilePictureUrl: responseData.instance?.profilePictureUrl,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+
+  } catch (error) {
+    console.error("Error in check-whatsapp-status:", error);
+    return new Response(
+      JSON.stringify({ error: (error as Error).message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

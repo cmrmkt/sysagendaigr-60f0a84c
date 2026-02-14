@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Guia de Uso - Agenda IGR</title>
+  <style>
+    @media print {
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .no-print { display: none !important; }
+      .page-break { page-break-before: always; }
+    }
+    
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #1f2937;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fff;
+    }
+    
+    .print-button {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+    
+    .print-button:hover { background: #2563eb; }
+    
+    h1 {
+      font-size: 32px;
+      color: #1e40af;
+      margin-bottom: 8px;
+      border-bottom: 3px solid #3b82f6;
+      padding-bottom: 12px;
+    }
+    
+    .subtitle {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    
+    h2 {
+      font-size: 22px;
+      color: #1e40af;
+      margin-top: 32px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    
+    h3 {
+      font-size: 18px;
+      color: #374151;
+      margin-top: 24px;
+      margin-bottom: 12px;
+    }
+    
+    p { margin-bottom: 12px; }
+    
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 16px;
+    }
+    
+    li { margin-bottom: 6px; }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+      color: #374151;
+    }
+    
+    tr:nth-child(even) { background: #f9fafb; }
+    
+    .tip {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 12px 16px;
+      margin: 16px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .tip strong { color: #1e40af; }
+    
+    .warning {
+      background: #fef3c7;
+      border-left: 4px solid #f59e0b;
+      padding: 12px 16px;
+      margin: 16px 0;
+      border-radius: 0 8px 8px 0;
+    }
+    
+    .warning strong { color: #92400e; }
+    
+    code {
+      background: #f3f4f6;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    
+    .section { margin-bottom: 32px; }
+    
+    .toc {
+      background: #f9fafb;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 32px;
+    }
+    
+    .toc h3 { margin-top: 0; }
+    
+    .toc ul { list-style: none; margin-left: 0; }
+    
+    .toc li { padding: 4px 0; }
+    
+    .toc a { color: #3b82f6; text-decoration: none; }
+    
+    .toc a:hover { text-decoration: underline; }
+    
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 2px solid #e5e7eb;
+      text-align: center;
+      color: #6b7280;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <button class="print-button no-print" onclick="window.print()">📥 Baixar PDF</button>
+  
+  <h1>📅 Guia de Uso - Agenda IGR</h1>
+  <p class="subtitle">Sistema de Gestão de Agenda para Igrejas | Versão 2.0</p>
+  
+  <div class="toc">
+    <h3>📋 Índice</h3>
+    <ul>
+      <li><a href="#primeiros-passos">1. Primeiros Passos</a></li>
+      <li><a href="#agenda">2. Trabalhando com a Agenda</a></li>
+      <li><a href="#tarefas">3. Gerenciando Tarefas (Quadro de Tarefas)</a></li>
+      <li><a href="#membros">4. Gerenciando Membros</a></li>
+      <li><a href="#ministerios">5. Gerenciando Ministérios</a></li>
+      <li><a href="#mural">6. Mural de Avisos</a></li>
+      <li><a href="#lembretes">7. Lembretes e Notificações</a></li>
+      <li><a href="#whatsapp">8. Integração com WhatsApp</a></li>
+      <li><a href="#senha">9. Alterando sua Senha</a></li>
+      <li><a href="#mobile">10. Usando no Celular</a></li>
+      <li><a href="#faq">11. Perguntas Frequentes</a></li>
+    </ul>
+  </div>
+
+  <div class="section" id="primeiros-passos">
+    <h2>📱 1. Primeiros Passos</h2>
+    
+    <h3>Acessando o Sistema</h3>
+    <ol>
+      <li>Acesse o endereço da plataforma no seu navegador</li>
+      <li>Na tela de login, insira seu <strong>número de telefone</strong> e <strong>senha</strong></li>
+      <li>Clique em <strong>"Entrar"</strong></li>
+    </ol>
+    
+    <div class="tip">
+      <strong>💡 Dica:</strong> Se você esqueceu sua senha, peça ao administrador da sua igreja para redefini-la.
+    </div>
+    
+    <h3>Conhecendo o Dashboard</h3>
+    <p>Após o login, você verá o Dashboard - sua central de informações:</p>
+    
+    <table>
+      <tr>
+        <th>Seção</th>
+        <th>O que mostra</th>
+      </tr>
+      <tr>
+        <td><strong>Estatísticas</strong></td>
+        <td>Totais de atividades, membros, ministérios e avisos</td>
+      </tr>
+      <tr>
+        <td><strong>Próximas Atividades</strong></td>
+        <td>Lista das atividades mais próximas</td>
+      </tr>
+      <tr>
+        <td><strong>Mural de Avisos</strong></td>
+        <td>Comunicados importantes da igreja</td>
+      </tr>
+      <tr>
+        <td><strong>Tarefas</strong></td>
+        <td>Quadros de tarefas dos eventos que você participa</td>
+      </tr>
+      <tr>
+        <td><strong>Gráfico de Atividades</strong></td>
+        <td>Distribuição de atividades por dia da semana</td>
+      </tr>
+    </table>
+
+    <h3>Alternando entre Tema Claro e Escuro</h3>
+    <ul>
+      <li><strong>Desktop:</strong> Clique no ícone 🌙/☀️ no topo do menu lateral</li>
+      <li><strong>Mobile:</strong> Clique no ícone 🌙/☀️ ao lado do menu hambúrguer</li>
+    </ul>
+  </div>
+
+  <div class="section page-break" id="agenda">
+    <h2>📅 2. Trabalhando com a Agenda</h2>
+    
+    <h3>Visualizando Atividades</h3>
+    <ol>
+      <li>No menu lateral, clique em <strong>"Agenda"</strong></li>
+      <li>Use os botões no topo para alternar entre visualizações:
+        <ul>
+          <li><strong>Mês:</strong> Visão geral do calendário com barras coloridas por ministério</li>
+          <li><strong>Semana:</strong> Grade semanal com atividades posicionadas por horário</li>
+          <li><strong>Dia:</strong> Visualização detalhada com detecção de colisão</li>
+        </ul>
+      </li>
+      <li>Clique em qualquer data para ver as atividades daquele dia</li>
+      <li>Clique em uma atividade para ver seus detalhes completos</li>
+    </ol>
+    
+    <h3>Criando uma Nova Atividade</h3>
+    <div class="warning">
+      <strong>⚠️ Nota:</strong> Apenas usuários com permissão de Admin ou Líder podem criar atividades.
+    </div>
+    
+    <ol>
+      <li>Na página da Agenda, clique no botão <strong>"+ Nova Atividade"</strong></li>
+      <li>Preencha os campos obrigatórios:
+        <ul>
+          <li><strong>Título:</strong> Nome da atividade</li>
+          <li><strong>Data:</strong> Quando será realizada (suporte a múltiplos dias)</li>
+          <li><strong>Horário:</strong> Início e fim (ou marque "Dia Inteiro")</li>
+          <li><strong>Ministério Responsável:</strong> Quem organiza a atividade</li>
+        </ul>
+      </li>
+      <li>Campos opcionais: Local, Ministérios Colaboradores, Visibilidade, Observações</li>
+      <li>Clique em <strong>"Salvar"</strong></li>
+    </ol>
+    
+    <h3>Usando Eventos Padrões (Templates)</h3>
+    <p>Para atividades que se repetem frequentemente (cultos, ensaios, reuniões):</p>
+    <ol>
+      <li>Ao criar uma nova atividade, clique em <strong>"Selecionar Template"</strong></li>
+      <li>Escolha o modelo desejado</li>
+      <li>Os campos serão preenchidos automaticamente (título, ministério responsável e colaboradores)</li>
+      <li>Ajuste apenas a <strong>data</strong> e clique em <strong>"Salvar"</strong></li>
+    </ol>
+
+    <h3>Gerenciando Eventos Padrões</h3>
+    <div class="warning">
+      <strong>⚠️ Nota:</strong> Apenas Admins e Líderes podem gerenciar templates.
+    </div>
+    <ol>
+      <li>No menu lateral, clique em <strong>"Eventos Padrões"</strong></li>
+      <li>Clique em <strong>"+ Novo Template"</strong> para criar um modelo</li>
+      <li>Preencha: Título, Ministério Responsável, Colaboradores, Horário e Local padrão</li>
+      <li>Arraste os templates para reordená-los</li>
+      <li>Use o switch para ativar/desativar um template</li>
+    </ol>
+    
+    <h3>Criando Atividades Recorrentes</h3>
+    <ol>
+      <li>Na criação da atividade, ative a opção <strong>"Atividade Recorrente"</strong></li>
+      <li>Escolha a frequência: Diária, Semanal, Mensal ou Anual</li>
+      <li>Defina o intervalo e a data de término</li>
+      <li>O sistema criará automaticamente todas as ocorrências</li>
+    </ol>
+  </div>
+
+  <div class="section page-break" id="tarefas">
+    <h2>✅ 3. Gerenciando Tarefas (Quadro de Tarefas)</h2>
+    
+    <h3>Acessando as Tarefas de uma Atividade</h3>
+    <ol>
+      <li>Clique em uma atividade na agenda</li>
+      <li>No modal de detalhes, clique em <strong>"Gerenciar Tarefas"</strong></li>
+      <li>Você verá o quadro com três colunas:
+        <ul>
+          <li><strong>A Fazer:</strong> Tarefas pendentes</li>
+          <li><strong>Em Andamento:</strong> Tarefas em execução</li>
+          <li><strong>Concluído:</strong> Tarefas finalizadas</li>
+        </ul>
+      </li>
+    </ol>
+
+    <div class="tip">
+      <strong>💡 Dica:</strong> Se a atividade tem ministérios colaboradores e nenhuma tarefa, o sistema cria automaticamente um card para cada ministério.
+    </div>
+
+    <h3>Acessando pelo Menu "Tarefas"</h3>
+    <ol>
+      <li>No menu lateral, clique em <strong>"Tarefas"</strong></li>
+      <li>Você verá todos os eventos com tarefas ativas onde você participa</li>
+      <li>Ao criar uma <strong>"Nova Tarefa"</strong>, selecione primeiro a atividade relacionada</li>
+    </ol>
+    
+    <h3>Criando uma Nova Tarefa</h3>
+    <ol>
+      <li>Clique no botão <strong>"+ Nova Tarefa"</strong></li>
+      <li>Preencha: Título, Descrição (editor com formatação), Responsáveis, Datas, Prioridade, Labels e Ministério</li>
+      <li>Clique em <strong>"Salvar"</strong></li>
+    </ol>
+    
+    <h3>Movendo Tarefas</h3>
+    <table>
+      <tr>
+        <th>Dispositivo</th>
+        <th>Como fazer</th>
+      </tr>
+      <tr>
+        <td>Desktop</td>
+        <td>Arraste e solte o card na coluna desejada</td>
+      </tr>
+      <tr>
+        <td>Mobile</td>
+        <td>Pressione e segure o card por 1 segundo, depois arraste</td>
+      </tr>
+    </table>
+    
+    <h3>Usando Checklists</h3>
+    <ol>
+      <li>Abra a tarefa clicando nela</li>
+      <li>Na seção "Checklists", clique em <strong>"+ Adicionar Checklist"</strong></li>
+      <li>Dê um nome à checklist</li>
+      <li>Adicione os itens com responsáveis e datas opcionais</li>
+      <li>Marque conforme for concluindo e acompanhe pela barra de progresso</li>
+      <li>Reordene os itens arrastando-os</li>
+    </ol>
+
+    <h3>Recursos Adicionais</h3>
+    <ul>
+      <li><strong>Menu de contexto:</strong> Clique com botão direito em uma tarefa para ações rápidas</li>
+      <li><strong>Arquivamento:</strong> Archive tarefas concluídas para manter o quadro organizado</li>
+      <li><strong>Filtros:</strong> Filtre por responsável, label, vencimento ou busca por texto</li>
+      <li><strong>Background personalizado:</strong> Personalize o fundo do quadro</li>
+      <li><strong>Histórico:</strong> Veja o registro de alterações em cada tarefa</li>
+    </ul>
+  </div>
+
+  <div class="section page-break" id="membros">
+    <h2>👥 4. Gerenciando Membros</h2>
+    
+    <div class="warning">
+      <strong>⚠️ Nota:</strong> Apenas Admins podem gerenciar membros.
+    </div>
+    
+    <h3>Cadastrando um Novo Membro</h3>
+    <ol>
+      <li>No menu lateral, clique em <strong>"Membros"</strong></li>
+      <li>Clique no botão <strong>"+ Novo Membro"</strong></li>
+      <li>Preencha: Nome, Telefone (com código do país), Email (opcional)</li>
+      <li>Defina os Ministérios: Líder (★) ou Participante</li>
+      <li>Configure as Permissões (Perfil, Criar eventos, Voluntário)</li>
+      <li>Clique em <strong>"Salvar"</strong></li>
+    </ol>
+    
+    <h3>Entendendo os Perfis</h3>
+    <table>
+      <tr>
+        <th>Perfil</th>
+        <th>O que pode fazer</th>
+      </tr>
+      <tr>
+        <td><strong>Admin</strong></td>
+        <td>Acesso total à gestão da igreja, configurações e membros</td>
+      </tr>
+      <tr>
+        <td><strong>Líder</strong></td>
+        <td>Cria atividades, gerencia tarefas e seus ministérios</td>
+      </tr>
+      <tr>
+        <td><strong>Visualizador</strong></td>
+        <td>Apenas visualiza informações, sem edição</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section" id="ministerios">
+    <h2>⛪ 5. Gerenciando Ministérios</h2>
+    
+    <h3>Criando um Novo Ministério</h3>
+    <ol>
+      <li>No menu lateral, clique em <strong>"Ministérios"</strong></li>
+      <li>Clique em <strong>"+ Novo Ministério"</strong></li>
+      <li>Preencha o Nome e escolha uma Cor identificadora</li>
+      <li>Clique em <strong>"Salvar"</strong></li>
+    </ol>
+    
+    <div class="tip">
+      <strong>💡 Dica:</strong> A cor escolhida será usada para identificar o ministério em atividades, tarefas e badges por todo o sistema.
+    </div>
+  </div>
+
+  <div class="section" id="mural">
+    <h2>📢 6. Mural de Avisos</h2>
+    
+    <h3>Criando um Aviso</h3>
+    <ol>
+      <li>No menu lateral, clique em <strong>"Mural"</strong></li>
+      <li>Clique em <strong>"+ Novo Aviso"</strong></li>
+      <li>Preencha: Título, Conteúdo, Prioridade (Normal/Alta/Urgente), Cores</li>
+      <li>Escolha o Status: Rascunho ou Publicado</li>
+      <li>Configure datas de publicação e despublicação automática (opcional)</li>
+      <li>Adicione um Link Externo opcional</li>
+      <li>Clique em <strong>"Salvar"</strong></li>
+    </ol>
+  </div>
+
+  <div class="section page-break" id="lembretes">
+    <h2>🔔 7. Lembretes e Notificações</h2>
+
+    <div class="warning">
+      <strong>⚠️ Nota:</strong> Apenas Admins podem configurar lembretes.
+    </div>
+
+    <h3>Configurando Lembretes de Atividades</h3>
+    <p>O sistema envia lembretes automáticos via WhatsApp sobre as atividades da agenda.</p>
+    <ol>
+      <li>No menu do usuário (rodapé do sidebar), clique em <strong>"Configurar Lembretes"</strong></li>
+      <li>Configure os gatilhos automáticos:
+        <ul>
+          <li><strong>Antes da Data:</strong> Lembrete antes da atividade acontecer</li>
+          <li><strong>No Dia:</strong> Lembrete no dia da atividade</li>
+          <li><strong>Após a Data:</strong> Lembrete após a atividade</li>
+        </ul>
+      </li>
+      <li>Cada gatilho pode ter sua mensagem personalizada</li>
+    </ol>
+
+    <h3>Lembretes Personalizados por Atividade</h3>
+    <p>Ao editar uma atividade, você pode:</p>
+    <ul>
+      <li><strong>Modo Padrão:</strong> Usar os gatilhos globais, com possibilidade de personalizar a mensagem individualmente</li>
+      <li><strong>Modo Personalizado:</strong> Criar uma mensagem exclusiva para envio imediato via botão <strong>"Enviar Lembrete Agora"</strong></li>
+    </ul>
+
+    <h3>Configurando Notificações Push</h3>
+    <ol>
+      <li>No menu do usuário, clique em <strong>"Notificações"</strong></li>
+      <li>Ative as notificações push no navegador</li>
+      <li>Você receberá alertas sobre atividades e tarefas</li>
+    </ol>
+  </div>
+
+  <div class="section" id="whatsapp">
+    <h2>💬 8. Integração com WhatsApp</h2>
+
+    <div class="warning">
+      <strong>⚠️ Nota:</strong> Apenas Admins podem configurar o WhatsApp.
+    </div>
+
+    <h3>Conectando o WhatsApp</h3>
+    <ol>
+      <li>No menu do usuário, clique em <strong>"Configurar WhatsApp"</strong></li>
+      <li>Siga as instruções para conectar sua instância</li>
+      <li>Escaneie o QR Code com o WhatsApp</li>
+      <li>Após conectar, o sistema poderá enviar lembretes automaticamente</li>
+    </ol>
+
+    <h3>O que o WhatsApp faz no sistema</h3>
+    <ul>
+      <li>Envia lembretes automáticos de atividades</li>
+      <li>Permite envio de lembretes instantâneos</li>
+      <li>Notifica membros sobre tarefas e atualizações</li>
+    </ul>
+  </div>
+
+  <div class="section" id="senha">
+    <h2>🔐 9. Alterando sua Senha</h2>
+    <ol>
+      <li>Clique no seu nome/foto no rodapé do menu lateral</li>
+      <li>No menu que abrir, clique em <strong>"Alterar Senha"</strong></li>
+      <li>Digite sua nova senha e confirme</li>
+      <li>Clique em <strong>"Salvar"</strong></li>
+    </ol>
+  </div>
+
+  <div class="section page-break" id="mobile">
+    <h2>📱 10. Usando no Celular</h2>
+    
+    <h3>Navegação</h3>
+    <ul>
+      <li>Use o <strong>menu hambúrguer</strong> (☰) para acessar as seções</li>
+      <li>Deslize para os lados no calendário para mudar de mês</li>
+      <li>Toque em datas para ver as atividades do dia</li>
+    </ul>
+    
+    <h3>Tarefas</h3>
+    <ul>
+      <li><strong>Pressione e segure</strong> um card por 1 segundo para arrastá-lo</li>
+      <li>Deslize horizontalmente para ver todas as colunas do Quadro de Tarefas</li>
+    </ul>
+    
+    <h3>Dicas Gerais</h3>
+    <ul>
+      <li>Use o botão <strong>voltar</strong> (←) no topo para retornar</li>
+      <li>O botão de <strong>scroll to top</strong> aparece ao rolar para baixo</li>
+      <li>Alterne entre tema claro e escuro pelo ícone no header</li>
+    </ul>
+  </div>
+
+  <div class="section" id="faq">
+    <h2>❓ 11. Perguntas Frequentes</h2>
+    
+    <h3>Como altero minha senha?</h3>
+    <p>Clique no seu nome no rodapé do menu lateral e selecione <strong>"Alterar Senha"</strong>.</p>
+    
+    <h3>Não consigo criar atividades. Por quê?</h3>
+    <p>Verifique se seu perfil tem permissão para criar atividades. Usuários com perfil "Visualizador" não podem criar ou editar conteúdo.</p>
+    
+    <h3>As atividades não estão aparecendo no calendário</h3>
+    <ul>
+      <li>Verifique se você está no mês correto</li>
+      <li>Confira se a atividade não está como "rascunho"</li>
+      <li>Tente atualizar a página (F5 ou puxe para baixo no mobile)</li>
+    </ul>
+    
+    <h3>Como sei quais tarefas são minhas?</h3>
+    <p>Acesse <strong>"Tarefas"</strong> no menu lateral para ver todos os eventos com tarefas atribuídas a você.</p>
+
+    <h3>Como funciona o envio de lembretes?</h3>
+    <p>O administrador configura os gatilhos de lembrete e conecta o WhatsApp. Os lembretes são enviados automaticamente nos horários configurados para os participantes das atividades.</p>
+
+    <h3>Posso personalizar o lembrete de uma atividade específica?</h3>
+    <p>Sim! Ao editar a atividade, use a aba de lembretes para personalizar a mensagem ou enviar um lembrete imediato.</p>
+    
+    <h3>Posso usar o sistema offline?</h3>
+    <p>Não, é necessária conexão com a internet para acessar e sincronizar os dados.</p>
+  </div>
+
+  <div class="section">
+    <h2>📋 Resumo de Atalhos</h2>
+    <table>
+      <tr>
+        <th>Ação</th>
+        <th>Como fazer</th>
+      </tr>
+      <tr>
+        <td>Criar atividade</td>
+        <td>Agenda → + Nova Atividade</td>
+      </tr>
+      <tr>
+        <td>Ver tarefas</td>
+        <td>Clique na atividade → Gerenciar Tarefas</td>
+      </tr>
+      <tr>
+        <td>Minhas tarefas</td>
+        <td>Menu → Tarefas</td>
+      </tr>
+      <tr>
+        <td>Adicionar membro</td>
+        <td>Membros → + Novo Membro</td>
+      </tr>
+      <tr>
+        <td>Novo ministério</td>
+        <td>Ministérios → + Novo Ministério</td>
+      </tr>
+      <tr>
+        <td>Publicar aviso</td>
+        <td>Mural → + Novo Aviso</td>
+      </tr>
+      <tr>
+        <td>Criar template</td>
+        <td>Eventos Padrões → + Novo Template</td>
+      </tr>
+      <tr>
+        <td>Configurar WhatsApp</td>
+        <td>Menu do usuário → Configurar WhatsApp</td>
+      </tr>
+      <tr>
+        <td>Configurar lembretes</td>
+        <td>Menu do usuário → Configurar Lembretes</td>
+      </tr>
+      <tr>
+        <td>Alterar senha</td>
+        <td>Menu do usuário → Alterar Senha</td>
+      </tr>
+      <tr>
+        <td>Alternar tema</td>
+        <td>Ícone 🌙/☀️ no header</td>
+      </tr>
+      <tr>
+        <td>Voltar ao início</td>
+        <td>Clique no logo ou Dashboard</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="footer">
+    <p><strong>Agenda IGR</strong> - Sistema de Gestão de Agenda para Igrejas</p>
+    <p>Guia atualizado em Fevereiro de 2026 | Versão 2.0</p>
+  </div>
+</body>
+</html>

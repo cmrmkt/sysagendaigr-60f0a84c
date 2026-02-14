@@ -1,0 +1,55 @@
+project_id = "tlrctcvitqvwdydpcmex"
+
+[functions.auth-register-org]
+verify_jwt = false
+
+[functions.auth-phone-login]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.change-password]
+verify_jwt = false
+
+[functions.setup-super-admin]
+verify_jwt = false
+
+[functions.admin-reset-password]
+verify_jwt = false
+
+[functions.generate-reminders]
+verify_jwt = false
+
+[functions.process-reminders]
+verify_jwt = false
+
+[functions.send-push]
+verify_jwt = false
+
+[functions.send-instant-reminder]
+verify_jwt = false
+
+[functions.reset-system]
+verify_jwt = false
+
+[functions.send-whatsapp]
+verify_jwt = false
+
+[functions.test-whatsapp-connection]
+verify_jwt = false
+
+[functions.create-whatsapp-instance]
+verify_jwt = false
+
+[functions.get-whatsapp-qrcode]
+verify_jwt = false
+
+[functions.check-whatsapp-status]
+verify_jwt = false
+
+[functions.disconnect-whatsapp]
+verify_jwt = false
+
+[functions.forgot-password]
+verify_jwt = false

@@ -1,0 +1,205 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design System - Igreja Evangélica
+   Cores suaves em tons de azul/roxo para ambiente acolhedor e profissional
+*/
+
+@layer base {
+  :root {
+    --background: 220 25% 92%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 231 48% 48%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 220 30% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 20% 94%;
+    --muted-foreground: 220 15% 45%;
+
+    --accent: 262 40% 55%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 20% 88%;
+    --input: 220 20% 88%;
+    --ring: 231 48% 48%;
+
+    --radius: 0.75rem;
+
+    /* Cores dos ministérios */
+    --ministry-louvor: 231 48% 48%;
+    --ministry-infantil: 340 82% 52%;
+    --ministry-jovens: 142 71% 45%;
+    --ministry-mulheres: 262 40% 55%;
+    --ministry-homens: 200 80% 45%;
+    --ministry-casais: 25 95% 53%;
+
+    /* Kanban board background colors */
+    --kanban-bg-default: 200 60% 50%;
+    --kanban-bg-ocean: 200 80% 55%;
+    --kanban-bg-forest: 150 60% 45%;
+    --kanban-bg-sunset: 30 80% 50%;
+    --kanban-bg-purple: 270 60% 55%;
+    --kanban-bg-neutral: 220 15% 60%;
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 231 48% 48%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 220 30% 94%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 220 20% 88%;
+    --sidebar-ring: 231 48% 48%;
+  }
+
+  .dark {
+    --background: 222 47% 8%;
+    --foreground: 210 40% 98%;
+
+    --card: 222 47% 11%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222 47% 11%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 231 48% 58%;
+    --primary-foreground: 222 47% 8%;
+
+    --secondary: 222 30% 18%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 222 30% 18%;
+    --muted-foreground: 220 15% 65%;
+
+    --accent: 262 40% 60%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 222 30% 22%;
+    --input: 222 30% 22%;
+    --ring: 231 48% 58%;
+
+    --sidebar-background: 222 47% 11%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 231 48% 58%;
+    --sidebar-primary-foreground: 222 47% 8%;
+    --sidebar-accent: 222 30% 18%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 222 30% 22%;
+    --sidebar-ring: 231 48% 58%;
+
+    /* Kanban board background colors - dark mode */
+    --kanban-bg-default: 200 50% 35%;
+    --kanban-bg-ocean: 200 60% 40%;
+    --kanban-bg-forest: 150 50% 30%;
+    --kanban-bg-sunset: 30 60% 35%;
+    --kanban-bg-purple: 270 50% 40%;
+    --kanban-bg-neutral: 220 20% 25%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    /* Previne problemas de scroll em iframes no iOS */
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    /* Configurações críticas para scroll em iframe no mobile */
+    height: 100%;
+    overflow: hidden;
+    /* Habilita scroll suave em touch devices */
+    -webkit-overflow-scrolling: touch;
+    /* Previne pull-to-refresh indesejado */
+    overscroll-behavior: contain;
+  }
+
+  #root {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  .ministry-louvor {
+    background-color: hsl(var(--ministry-louvor));
+  }
+  .ministry-infantil {
+    background-color: hsl(var(--ministry-infantil));
+  }
+  .ministry-jovens {
+    background-color: hsl(var(--ministry-jovens));
+  }
+  .ministry-mulheres {
+    background-color: hsl(var(--ministry-mulheres));
+  }
+  .ministry-homens {
+    background-color: hsl(var(--ministry-homens));
+  }
+  .ministry-casais {
+    background-color: hsl(var(--ministry-casais));
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* =========================================
+     DESIGN SYSTEM - PADRÃO VISUAL DE CAMPOS
+     ========================================= */
+  
+  /* Label de seção (ex: CHECKLIST (1), DESCRIÇÃO) */
+  .section-label {
+    @apply font-semibold text-xs uppercase tracking-wide text-muted-foreground;
+  }
+
+  /* Container de seção com borda e fundo */
+  .section-container {
+    @apply bg-muted/40 border border-border rounded-lg p-4;
+  }
+
+  /* Container de seção mais sutil */
+  .section-container-subtle {
+    @apply bg-muted/20 border border-border/50 rounded-lg p-3;
+  }
+
+  /* Campo de conteúdo editável */
+  .field-content {
+    @apply bg-background border border-border rounded-md p-3;
+  }
+
+  /* Campo de conteúdo com hover */
+  .field-content-interactive {
+    @apply bg-background border border-border rounded-md p-3 cursor-pointer transition-colors hover:bg-muted/50 hover:border-primary/30;
+  }
+
+  /* Header de seção com ações */
+  .section-header {
+    @apply flex items-center justify-between pb-2 border-b border-border/50 mb-3;
+  }
+}
