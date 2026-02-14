@@ -62,6 +62,7 @@ const App = () => (
                     <Route path="/super-admin/faturas" element={<Invoices />} />
                     <Route path="/super-admin/logs" element={<UsageLogs />} />
                     <Route path="/super-admin/notificacoes" element={<NotificationLogs />} />
+                    <Route path="/super-admin/guia-inicio" element={<GettingStartedGuide />} />
                   </Route>
                 </Route>
                 
