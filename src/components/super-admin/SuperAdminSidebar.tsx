@@ -135,19 +135,19 @@ const SuperAdminSidebar = () => {
           ))}
 
           {/* Documentation Link */}
-          <a
-            href="/guia-de-uso.html"
-            target="_blank"
-            rel="noopener noreferrer"
+          <NavLink
+            to="/super-admin/guia-inicio"
             onClick={() => setIsOpen(false)}
             className={cn(
               "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
-              "hover:bg-secondary text-muted-foreground hover:text-foreground"
+              isActive("/super-admin/guia-inicio")
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "hover:bg-secondary text-muted-foreground hover:text-foreground"
             )}
           >
             <BookOpen className="w-5 h-5" />
             <span className="font-medium">Guia de Uso</span>
-          </a>
+          </NavLink>
         </nav>
 
         {/* Footer */}

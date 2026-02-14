@@ -362,6 +362,7 @@ const GettingStartedGuide = () => {
   const { role } = useAuth();
   const { users, ministries, events } = useData();
   const t = i18n[lang];
+  const isSuperAdmin = role === "super_admin";
 
   const getStepCompleted = (stepNumber: number): boolean => {
     switch (stepNumber) {
@@ -419,16 +420,18 @@ const GettingStartedGuide = () => {
         </div>
       </div>
 
-      {/* Progress */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">{t.progress}</span>
-            <Badge variant="secondary">{completedCount}/{steps.length} {t.completed}</Badge>
-          </div>
-          <Progress value={progressPercent} className="h-2" />
-        </CardContent>
-      </Card>
+      {/* Progress - only for regular users with org data */}
+      {!isSuperAdmin && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-foreground">{t.progress}</span>
+              <Badge variant="secondary">{completedCount}/{steps.length} {t.completed}</Badge>
+            </div>
+            <Progress value={progressPercent} className="h-2" />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Steps */}
       <div className="space-y-3">
