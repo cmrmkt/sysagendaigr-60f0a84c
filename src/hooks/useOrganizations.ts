@@ -30,6 +30,7 @@ export interface OrganizationWithStats {
   events_count?: number;
   pending_invoices?: number;
   overdue_invoices?: number;
+  last_activity_at?: string | null;
 }
 
 export const useOrganizations = () => {
@@ -76,12 +77,22 @@ export const useOrganizations = () => {
             .eq("organization_id", org.id)
             .eq("status", "overdue");
 
+          // Último acesso (log mais recente)
+          const { data: lastLog } = await supabase
+            .from("usage_logs")
+            .select("created_at")
+            .eq("organization_id", org.id)
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
           return {
             ...org,
             users_count: usersCount || 0,
             events_count: eventsCount || 0,
             pending_invoices: pendingCount || 0,
             overdue_invoices: overdueCount || 0,
+            last_activity_at: lastLog?.created_at || null,
           } as OrganizationWithStats;
         })
       );

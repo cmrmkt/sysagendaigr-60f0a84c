@@ -16,6 +16,7 @@ import {
   Plus,
   Pencil,
   Trash2,
+  Clock,
 } from "lucide-react";
 import { 
   useOrganizations, 
@@ -313,19 +314,20 @@ const Organizations = () => {
                 <TableHead className="text-center">Usuários</TableHead>
                 <TableHead className="text-center">Eventos</TableHead>
                 <TableHead>Criado em</TableHead>
+                <TableHead>Último Acesso</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : filteredOrgs?.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                     Nenhuma organização encontrada
                   </TableCell>
                 </TableRow>
@@ -376,6 +378,18 @@ const Organizations = () => {
                       {org.created_at
                         ? format(new Date(org.created_at), "dd/MM/yyyy", { locale: ptBR })
                         : "-"}
+                    </TableCell>
+                    <TableCell>
+                      {org.last_activity_at ? (
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-sm">
+                            {format(new Date(org.last_activity_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Sem atividade</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
