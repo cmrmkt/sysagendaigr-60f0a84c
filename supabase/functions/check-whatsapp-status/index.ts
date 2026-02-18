@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface CheckStatusPayload {
@@ -11,13 +11,7 @@ interface CheckStatusPayload {
 }
 
 interface ConnectionStateResponse {
-  instance?: {
-    instanceName: string;
-    state: string;
-    owner?: string;
-    profileName?: string;
-    profilePictureUrl?: string;
-  };
+  instance?: { instanceName: string; state: string; owner?: string; profileName?: string; profilePictureUrl?: string };
   error?: string;
   message?: string;
 }
@@ -30,17 +24,30 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const globalEvolutionUrl = Deno.env.get("GLOBAL_EVOLUTION_API_URL");
     const globalEvolutionKey = Deno.env.get("GLOBAL_EVOLUTION_API_KEY");
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // --- Auth validation ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: userData, error: authError } = await userClient.auth.getUser();
+    if (authError || !userData?.user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     if (!globalEvolutionUrl || !globalEvolutionKey) {
       return new Response(
-        JSON.stringify({ 
-          error: "WhatsApp não configurado pelo administrador do sistema",
-          code: "GLOBAL_CONFIG_MISSING"
-        }),
+        JSON.stringify({ error: "WhatsApp não configurado pelo administrador do sistema", code: "GLOBAL_CONFIG_MISSING" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -49,10 +56,13 @@ Deno.serve(async (req) => {
     const { organization_id } = payload;
 
     if (!organization_id) {
-      return new Response(
-        JSON.stringify({ error: "organization_id is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "organization_id is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Verify caller belongs to the org
+    const { data: profile } = await supabase.from("profiles").select("organization_id").eq("id", userData.user.id).single();
+    if (!profile || profile.organization_id !== organization_id) {
+      return new Response(JSON.stringify({ error: "Access denied" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // Fetch organization data
@@ -63,103 +73,48 @@ Deno.serve(async (req) => {
       .single();
 
     if (orgError || !org) {
-      return new Response(
-        JSON.stringify({ error: "Organização não encontrada" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Organização não encontrada" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (!org.evolution_instance_name) {
       return new Response(
-        JSON.stringify({ 
-          connected: false,
-          state: "not_created",
-          message: "Instância não criada"
-        }),
+        JSON.stringify({ connected: false, state: "not_created", message: "Instância não criada" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check connection state on Evolution API
     const evolutionUrl = `${globalEvolutionUrl}/instance/connectionState/${org.evolution_instance_name}`;
-    
     console.log("Checking connection state:", evolutionUrl);
     
-    const response = await fetch(evolutionUrl, {
-      method: "GET",
-      headers: {
-        "apikey": globalEvolutionKey,
-      },
-    });
-
+    const response = await fetch(evolutionUrl, { method: "GET", headers: { "apikey": globalEvolutionKey } });
     const responseData = await response.json() as ConnectionStateResponse;
     console.log("Connection state response:", JSON.stringify(responseData));
 
     if (!response.ok) {
-      // If instance not found, it was deleted or never created properly
       if (response.status === 404) {
-        await supabase
-          .from("organizations")
-          .update({
-            evolution_instance_name: null,
-            whatsapp_connected: false,
-            whatsapp_connected_at: null,
-            whatsapp_phone_number: null,
-          })
-          .eq("id", organization_id);
-
-        return new Response(
-          JSON.stringify({
-            connected: false,
-            state: "not_found",
-            message: "Instância não encontrada",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        await supabase.from("organizations").update({
+          evolution_instance_name: null, whatsapp_connected: false, whatsapp_connected_at: null, whatsapp_phone_number: null,
+        }).eq("id", organization_id);
+        return new Response(JSON.stringify({ connected: false, state: "not_found", message: "Instância não encontrada" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-
-      return new Response(
-        JSON.stringify({ 
-          error: responseData.message || "Erro ao verificar status",
-          state: "error"
-        }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: responseData.message || "Erro ao verificar status", state: "error" }), { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const state = responseData.instance?.state || "unknown";
     const isConnected = state === "open";
 
-    // Update organization if state changed
     if (isConnected && !org.whatsapp_connected) {
       const phoneNumber = responseData.instance?.owner?.replace("@s.whatsapp.net", "") || null;
-      
-      await supabase
-        .from("organizations")
-        .update({
-          whatsapp_connected: true,
-          whatsapp_connected_at: new Date().toISOString(),
-          whatsapp_phone_number: phoneNumber,
-        })
-        .eq("id", organization_id);
-
+      await supabase.from("organizations").update({ whatsapp_connected: true, whatsapp_connected_at: new Date().toISOString(), whatsapp_phone_number: phoneNumber }).eq("id", organization_id);
       console.log(`Organization ${organization_id} WhatsApp connected: ${phoneNumber}`);
     } else if (!isConnected && org.whatsapp_connected) {
-      // Connection was lost
-      await supabase
-        .from("organizations")
-        .update({
-          whatsapp_connected: false,
-        })
-        .eq("id", organization_id);
-
+      await supabase.from("organizations").update({ whatsapp_connected: false }).eq("id", organization_id);
       console.log(`Organization ${organization_id} WhatsApp disconnected`);
     }
 
     return new Response(
       JSON.stringify({
-        connected: isConnected,
-        state: state,
+        connected: isConnected, state,
         phoneNumber: responseData.instance?.owner?.replace("@s.whatsapp.net", ""),
         profileName: responseData.instance?.profileName,
         profilePictureUrl: responseData.instance?.profilePictureUrl,
@@ -169,9 +124,6 @@ Deno.serve(async (req) => {
 
   } catch (error) {
     console.error("Error in check-whatsapp-status:", error);
-    return new Response(
-      JSON.stringify({ error: (error as Error).message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

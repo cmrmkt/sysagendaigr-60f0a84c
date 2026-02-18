@@ -21,8 +21,42 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // --- Auth validation ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const isServiceRole = token === supabaseServiceKey;
+
+    let callerOrgId: string | null = null;
+
+    if (!isServiceRole) {
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      });
+      const { data: userData, error: authError } = await userClient.auth.getUser();
+      if (authError || !userData?.user) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("organization_id")
+        .eq("id", userData.user.id)
+        .single();
+      callerOrgId = profile?.organization_id || null;
+    }
 
     const payload: InstantReminderPayload = await req.json();
     console.log("Received instant reminder request:", JSON.stringify(payload));
@@ -31,6 +65,14 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "event_id and organization_id are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify caller belongs to the requested organization
+    if (!isServiceRole && callerOrgId !== payload.organization_id) {
+      return new Response(
+        JSON.stringify({ error: "Access denied" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -63,7 +105,6 @@ Deno.serve(async (req) => {
       console.log("Using template from payload");
       template = payload.custom_template;
     } else {
-      // Get organization's message templates from DB as fallback
       const { data: orgData } = await supabase
         .from("organizations")
         .select("reminder_settings")
@@ -75,7 +116,6 @@ Deno.serve(async (req) => {
       console.log("Using template from DB/default fallback");
     }
 
-    // Get ministry names (responsible + collaborators) with leader names
     let ministryName = "";
     let collabMinistryNames: string[] = [];
     
@@ -87,7 +127,6 @@ Deno.serve(async (req) => {
         .single();
       
       if (ministry) {
-        // Get leader name for responsible ministry
         const { data: leaderEntries } = await supabase
           .from("user_ministries")
           .select("user_id")
@@ -108,22 +147,16 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Collect all participant IDs (using Set to avoid duplicates)
     const recipientSet = new Set<string>();
-
-    // Add responsible user
     if (event.responsible_id) {
       recipientSet.add(event.responsible_id);
     }
 
-    // Collect ministry IDs: responsible ministry + collaborator ministries
     const ministryIds: string[] = [];
-    
     if (event.ministry_id) {
       ministryIds.push(event.ministry_id);
     }
 
-    // Fetch collaborator ministries for this event
     const { data: collabMinistries, error: collabError } = await supabase
       .from("event_collaborator_ministries")
       .select("ministry_id")
@@ -140,7 +173,6 @@ Deno.serve(async (req) => {
         }
       }
       
-      // Fetch collaborator ministry names with leaders
       if (collabMinistryIds.length > 0) {
         const { data: collabMinData } = await supabase
           .from("ministries")
@@ -148,7 +180,6 @@ Deno.serve(async (req) => {
           .in("id", collabMinistryIds);
         
         if (collabMinData) {
-          // Get leaders for collab ministries
           const { data: collabLeaders } = await supabase
             .from("user_ministries")
             .select("ministry_id, user_id")
@@ -178,7 +209,6 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${ministryIds.length} ministries for event ${event.title}`);
 
-    // Fetch LEADERS from these ministries (not all members)
     if (ministryIds.length > 0) {
       const { data: ministryMembers, error: membersError } = await supabase
         .from("user_ministries")
@@ -203,8 +233,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           message: "Nenhum participante encontrado para este evento",
-          sent: 0,
-          failed: 0 
+          sent: 0, failed: 0 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -212,7 +241,6 @@ Deno.serve(async (req) => {
 
     console.log(`Found ${recipientIds.length} participants from ${ministryIds.length} ministries for event ${event.title}`);
 
-    // Fetch recipient profiles for personalization
     const { data: recipients } = await supabase
       .from("profiles")
       .select("id, name, phone, phone_country")
@@ -222,19 +250,16 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           message: "Nenhum perfil encontrado para os participantes",
-          sent: 0,
-          failed: 0 
+          sent: 0, failed: 0 
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Format date for notification message
     const [year, month, day] = event.date.split("-");
     const formattedDate = `${day}/${month}/${year}`;
     const formattedTime = event.start_time.slice(0, 5);
 
-    // Format creation date
     const createdAtDate = event.created_at ? event.created_at.split("T")[0] : "";
     const createdAtTime = event.created_at ? event.created_at.split("T")[1]?.slice(0, 5) || "" : "";
     const formattedCreatedDate = createdAtDate ? (() => {
@@ -245,7 +270,6 @@ Deno.serve(async (req) => {
     let totalSent = 0;
     let totalFailed = 0;
 
-    // Render and send personalized message for each recipient
     for (const recipient of recipients) {
       const { title, body } = renderTemplate(template, {
         titulo: event.title,
@@ -299,7 +323,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error in send-instant-reminder:", error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

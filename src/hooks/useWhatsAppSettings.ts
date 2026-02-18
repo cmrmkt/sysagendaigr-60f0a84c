@@ -48,21 +48,22 @@ export const useWhatsAppSettings = () => {
     queryFn: async () => {
       if (!effectiveOrganization?.id) return DEFAULT_WHATSAPP_SETTINGS;
 
-      const { data, error } = await supabase
-        .from("organizations")
-        .select("evolution_api_url, evolution_api_key, evolution_instance_name, whatsapp_connected, whatsapp_connected_at, whatsapp_phone_number")
+      // Only read non-sensitive fields; credentials are managed server-side via edge functions
+      const { data, error } = await (supabase as any)
+        .from("organizations_safe")
+        .select("whatsapp_connected, whatsapp_connected_at, whatsapp_phone_number")
         .eq("id", effectiveOrganization.id)
         .single();
 
       if (error) throw error;
 
       return {
-        evolution_api_url: data?.evolution_api_url || "",
-        evolution_api_key: data?.evolution_api_key || "",
-        evolution_instance_name: data?.evolution_instance_name || "",
-        whatsapp_connected: data?.whatsapp_connected || false,
-        whatsapp_connected_at: data?.whatsapp_connected_at || null,
-        whatsapp_phone_number: data?.whatsapp_phone_number || null,
+        evolution_api_url: "",
+        evolution_api_key: "",
+        evolution_instance_name: "",
+        whatsapp_connected: (data as any)?.whatsapp_connected || false,
+        whatsapp_connected_at: (data as any)?.whatsapp_connected_at || null,
+        whatsapp_phone_number: (data as any)?.whatsapp_phone_number || null,
       };
     },
     enabled: !!effectiveOrganization?.id,

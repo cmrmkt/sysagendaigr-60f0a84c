@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface CreateInstancePayload {
@@ -11,99 +11,48 @@ interface CreateInstancePayload {
 }
 
 interface EvolutionCreateResponse {
-  instance?: {
-    instanceName: string;
-    instanceId: string;
-    status: string;
-  };
+  instance?: { instanceName: string; instanceId: string; status: string };
   hash?: string;
-  qrcode?: {
-    base64: string;
-    code: string;
-  };
+  qrcode?: { base64: string; code: string };
   error?: string;
   message?: string | string[];
   status?: number;
-  response?: {
-    message?: string | string[];
-  };
+  response?: { message?: string | string[] };
 }
 
-// Helper to extract error message from Evolution API response
 function extractErrorMessage(responseData: EvolutionCreateResponse): string {
-  // Check nested response.message first (403 errors use this format)
   const nestedMsg = responseData.response?.message;
-  if (nestedMsg) {
-    return Array.isArray(nestedMsg) ? nestedMsg[0] || "" : nestedMsg;
-  }
-  
-  // Check top-level message
+  if (nestedMsg) return Array.isArray(nestedMsg) ? nestedMsg[0] || "" : nestedMsg;
   const topMsg = responseData.message;
-  if (topMsg) {
-    return Array.isArray(topMsg) ? topMsg[0] || "" : topMsg;
-  }
-  
-  // Fallback to error field
+  if (topMsg) return Array.isArray(topMsg) ? topMsg[0] || "" : topMsg;
   return responseData.error || "";
 }
 
-// Helper to check if error indicates instance exists
 function isInstanceExistsError(responseData: EvolutionCreateResponse): boolean {
   const message = extractErrorMessage(responseData).toLowerCase();
-  return message.includes("already") || 
-         message.includes("exists") || 
-         message.includes("in use") ||
-         message.includes("já existe");
+  return message.includes("already") || message.includes("exists") || message.includes("in use") || message.includes("já existe");
 }
 
-// Fetch QR code for an existing instance with retry
 async function fetchQRCodeWithRetry(
-  evolutionUrl: string, 
-  apiKey: string, 
-  instanceName: string,
-  maxRetries: number = 2
+  evolutionUrl: string, apiKey: string, instanceName: string, maxRetries: number = 2
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     console.log(`Fetching QR Code attempt ${attempt}/${maxRetries} for ${instanceName}`);
-    
     try {
       const response = await fetch(`${evolutionUrl}/instance/connect/${instanceName}`, {
-        method: "GET",
-        headers: { "apikey": apiKey },
+        method: "GET", headers: { "apikey": apiKey },
       });
-      
       const data = await response.json();
       console.log(`QR fetch attempt ${attempt} response:`, JSON.stringify(data));
-      
-      // Check if connected
-      if (data.instance?.state === "open") {
-        return { success: true, data: { connected: true, state: "open" } };
-      }
-      
-      // Check if QR code is available
+      if (data.instance?.state === "open") return { success: true, data: { connected: true, state: "open" } };
       const qrBase64 = data.base64 || data.qrcode?.base64;
-      if (qrBase64) {
-        return { 
-          success: true, 
-          data: { 
-            qrcode: qrBase64, 
-            code: data.code || data.qrcode?.code 
-          } 
-        };
-      }
-      
-      // If no QR and not connected, wait and retry
-      if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, 1000));
-      }
+      if (qrBase64) return { success: true, data: { qrcode: qrBase64, code: data.code || data.qrcode?.code } };
+      if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000));
     } catch (err) {
       console.error(`QR fetch attempt ${attempt} error:`, err);
-      if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, 1000));
-      }
+      if (attempt < maxRetries) await new Promise(r => setTimeout(r, 1000));
     }
   }
-  
   return { success: false, error: "Não foi possível obter o QR Code. Tente novamente." };
 }
 
@@ -115,19 +64,38 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const globalEvolutionUrl = Deno.env.get("GLOBAL_EVOLUTION_API_URL");
     const globalEvolutionKey = Deno.env.get("GLOBAL_EVOLUTION_API_KEY");
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // --- Auth validation: require authenticated admin ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: userData, error: authError } = await userClient.auth.getUser();
+    if (authError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validate global configuration
     if (!globalEvolutionUrl || !globalEvolutionKey) {
       console.error("Global Evolution API not configured");
       return new Response(
-        JSON.stringify({ 
-          error: "WhatsApp não configurado pelo administrador do sistema",
-          code: "GLOBAL_CONFIG_MISSING"
-        }),
+        JSON.stringify({ error: "WhatsApp não configurado pelo administrador do sistema", code: "GLOBAL_CONFIG_MISSING" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -141,6 +109,35 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "organization_id is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify caller belongs to the org and is admin
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("organization_id")
+      .eq("id", userData.user.id)
+      .single();
+
+    if (!profile || profile.organization_id !== organization_id) {
+      return new Response(
+        JSON.stringify({ error: "Access denied" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Check admin role
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .in("role", ["admin", "super_admin"])
+      .limit(1);
+
+    if (!roleData || roleData.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "Admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -159,162 +156,80 @@ Deno.serve(async (req) => {
       );
     }
 
-    // If already connected, return error
     if (org.whatsapp_connected) {
       return new Response(
-        JSON.stringify({ 
-          error: "WhatsApp já está conectado",
-          code: "ALREADY_CONNECTED"
-        }),
+        JSON.stringify({ error: "WhatsApp já está conectado", code: "ALREADY_CONNECTED" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Generate unique instance name using org slug + short id
     const shortId = organization_id.substring(0, 8);
     const instanceName = org.evolution_instance_name || `igreja-${org.slug}-${shortId}`;
 
     console.log(`Creating instance: ${instanceName}`);
 
-    // Create instance on Evolution API
     const evolutionUrl = `${globalEvolutionUrl}/instance/create`;
-    
     const evolutionPayload = {
-      instanceName: instanceName,
-      integration: "WHATSAPP-BAILEYS",
-      qrcode: true,
-      rejectCall: true,
-      msgCall: "Não recebemos ligações. Por favor, envie uma mensagem.",
-      groupsIgnore: true,
-      alwaysOnline: false,
-      readMessages: false,
-      readStatus: false,
-      syncFullHistory: false,
+      instanceName, integration: "WHATSAPP-BAILEYS", qrcode: true,
+      rejectCall: true, msgCall: "Não recebemos ligações. Por favor, envie uma mensagem.",
+      groupsIgnore: true, alwaysOnline: false, readMessages: false, readStatus: false, syncFullHistory: false,
     };
 
     console.log("Calling Evolution API:", evolutionUrl);
     
     const response = await fetch(evolutionUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": globalEvolutionKey,
-      },
+      headers: { "Content-Type": "application/json", "apikey": globalEvolutionKey },
       body: JSON.stringify(evolutionPayload),
     });
 
     const responseData = await response.json() as EvolutionCreateResponse;
     console.log("Evolution API response status:", response.status);
-    console.log("Evolution API response:", JSON.stringify(responseData));
 
-    // Handle instance creation failure
     if (!response.ok) {
       const errorMsg = extractErrorMessage(responseData);
-      console.log("Error message extracted:", errorMsg);
       
-      // Check if instance already exists
       if (isInstanceExistsError(responseData)) {
         console.log("Instance already exists, attempting to fetch QR code...");
+        await supabase.from("organizations").update({ evolution_instance_name: instanceName, evolution_api_url: globalEvolutionUrl }).eq("id", organization_id);
         
-        // Update organization with instance name first
-        await supabase
-          .from("organizations")
-          .update({
-            evolution_instance_name: instanceName,
-            evolution_api_url: globalEvolutionUrl,
-          })
-          .eq("id", organization_id);
-        
-        // Try to get QR code
         const qrResult = await fetchQRCodeWithRetry(globalEvolutionUrl, globalEvolutionKey, instanceName);
         
         if (qrResult.success) {
           if (qrResult.data?.connected) {
-            // Already connected
-            await supabase
-              .from("organizations")
-              .update({
-                whatsapp_connected: true,
-                whatsapp_connected_at: new Date().toISOString(),
-              })
-              .eq("id", organization_id);
-
-            return new Response(
-              JSON.stringify({
-                success: true,
-                instanceName: instanceName,
-                connected: true,
-                message: "WhatsApp já está conectado",
-              }),
-              { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
+            await supabase.from("organizations").update({ whatsapp_connected: true, whatsapp_connected_at: new Date().toISOString() }).eq("id", organization_id);
+            return new Response(JSON.stringify({ success: true, instanceName, connected: true, message: "WhatsApp já está conectado" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
           }
-          
-          // Return QR code
-          return new Response(
-            JSON.stringify({
-              success: true,
-              instanceName: instanceName,
-              qrcode: qrResult.data?.qrcode,
-              code: qrResult.data?.code,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return new Response(JSON.stringify({ success: true, instanceName, qrcode: qrResult.data?.qrcode, code: qrResult.data?.code }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
         }
         
-        // QR fetch failed, but instance exists - return success with instruction
-        return new Response(
-          JSON.stringify({
-            success: true,
-            instanceName: instanceName,
-            needsRefresh: true,
-            message: "Instância encontrada. Clique em 'Gerar Novo Código' para obter o QR Code.",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ success: true, instanceName, needsRefresh: true, message: "Instância encontrada. Clique em 'Gerar Novo Código' para obter o QR Code." }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      // Other error - return with clear message
       console.error("Evolution API error:", responseData);
       return new Response(
-        JSON.stringify({ 
-          error: errorMsg || "Erro ao criar instância WhatsApp",
-          details: responseData
-        }),
+        JSON.stringify({ error: errorMsg || "Erro ao criar instância WhatsApp" }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Success - save instance data to organization
-    const { error: updateError } = await supabase
-      .from("organizations")
-      .update({
-        evolution_instance_name: instanceName,
-        evolution_api_url: globalEvolutionUrl,
-        evolution_api_key: responseData.hash || null,
-      })
-      .eq("id", organization_id);
+    const { error: updateError } = await supabase.from("organizations").update({
+      evolution_instance_name: instanceName,
+      evolution_api_url: globalEvolutionUrl,
+      evolution_api_key: responseData.hash || null,
+    }).eq("id", organization_id);
 
-    if (updateError) {
-      console.error("Error updating organization:", updateError);
-    }
+    if (updateError) console.error("Error updating organization:", updateError);
 
-    // Return QR Code
     return new Response(
-      JSON.stringify({
-        success: true,
-        instanceName: instanceName,
-        qrcode: responseData.qrcode?.base64,
-        code: responseData.qrcode?.code,
-        hash: responseData.hash,
-      }),
+      JSON.stringify({ success: true, instanceName, qrcode: responseData.qrcode?.base64, code: responseData.qrcode?.code, hash: responseData.hash }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
     console.error("Error in create-whatsapp-instance:", error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

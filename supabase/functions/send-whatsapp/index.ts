@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface WhatsAppPayload {
@@ -26,31 +26,57 @@ interface EvolutionSendResponse {
 
 // Format phone number to international format (remove +, spaces, dashes)
 function formatPhoneNumber(phone: string, countryCode: string): string {
-  // Remove all non-digit characters
   let cleaned = phone.replace(/\D/g, "");
-  
-  // If number starts with 0, remove it
   if (cleaned.startsWith("0")) {
     cleaned = cleaned.substring(1);
   }
-  
-  // If number doesn't start with country code, add it based on phone_country
   const countryDialCodes: Record<string, string> = {
-    BR: "55",
-    US: "1",
-    PT: "351",
-    CA: "1",
-    // Add more as needed
+    BR: "55", US: "1", PT: "351", CA: "1",
   };
-  
   const dialCode = countryDialCodes[countryCode] || "55";
-  
-  // Check if already has country code
   if (!cleaned.startsWith(dialCode)) {
     cleaned = dialCode + cleaned;
   }
-  
   return cleaned;
+}
+
+// Validate caller's identity and organization access
+async function validateCaller(
+  req: Request,
+  supabase: any,
+  organizationId: string
+): Promise<{ authorized: boolean; error?: string; status?: number }> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { authorized: false, error: "Unauthorized", status: 401 };
+  }
+
+  const token = authHeader.replace("Bearer ", "");
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+  // Create a client scoped to the caller
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+
+  const { data, error } = await userClient.auth.getUser();
+  if (error || !data?.user) {
+    return { authorized: false, error: "Unauthorized", status: 401 };
+  }
+
+  // Check user belongs to the organization
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id")
+    .eq("id", data.user.id)
+    .single();
+
+  if (!profile || profile.organization_id !== organizationId) {
+    return { authorized: false, error: "Access denied", status: 403 };
+  }
+
+  return { authorized: true };
 }
 
 Deno.serve(async (req) => {
@@ -75,6 +101,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate caller: check JWT and org membership
+    // Allow service-role calls (from other edge functions like process-reminders)
+    const authHeader = req.headers.get("Authorization");
+    const isServiceRole = authHeader?.includes(supabaseServiceKey);
+    
+    if (!isServiceRole) {
+      const validation = await validateCaller(req, supabase, organization_id);
+      if (!validation.authorized) {
+        return new Response(
+          JSON.stringify({ error: validation.error }),
+          { status: validation.status || 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Fetch organization's Evolution API credentials
     const { data: org, error: orgError } = await supabase
       .from("organizations")
@@ -90,7 +131,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if WhatsApp is connected
     if (!org.whatsapp_connected) {
       console.error("WhatsApp not connected for organization:", organization_id);
       return new Response(
@@ -159,9 +199,7 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: "No recipients with valid phone numbers",
-          sent: 0, 
-          failed: 0,
-          skipped: skippedCount
+          sent: 0, failed: 0, skipped: skippedCount
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -169,22 +207,19 @@ Deno.serve(async (req) => {
 
     console.log(`Sending WhatsApp to ${validRecipients.length} recipients (${skippedCount} skipped)`);
 
-    // Compose message
     const message = `${title}\n\n${body}`;
 
     let sent = 0;
     let failed = 0;
     let skipped = skippedCount;
 
-    // Retry helper with exponential backoff
     async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
       let lastError: Error | null = null;
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
           const response = await fetch(url, options);
-          // If rate limited, wait and retry
           if (response.status === 429) {
-            const waitTime = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+            const waitTime = Math.pow(2, attempt) * 1000;
             console.log(`Rate limited, waiting ${waitTime}ms before retry...`);
             await new Promise(resolve => setTimeout(resolve, waitTime));
             continue;
@@ -200,18 +235,12 @@ Deno.serve(async (req) => {
       throw lastError || new Error("Max retries exceeded");
     }
 
-    // Send messages in parallel (with concurrency limit)
     const sendPromises = validRecipients.map(async (recipient) => {
       const phoneNumber = formatPhoneNumber(recipient.phone, recipient.phone_country);
       
       try {
-        // Evolution API endpoint for sending text
         const evolutionUrl = `${evolution_api_url}/message/sendText/${evolution_instance_name}`;
-        
-        const evolutionPayload = {
-          number: phoneNumber,
-          text: message,
-        };
+        const evolutionPayload = { number: phoneNumber, text: message };
 
         console.log(`Sending to ${recipient.name} (${phoneNumber})`);
 
@@ -226,7 +255,6 @@ Deno.serve(async (req) => {
 
         const responseData = await response.json() as EvolutionSendResponse;
 
-        // Log the notification attempt
         const logData = {
           recipient_id: recipient.id,
           recipient_name: recipient.name,
@@ -250,19 +278,15 @@ Deno.serve(async (req) => {
         }
       } catch (error) {
         console.error(`✗ Error sending to ${recipient.name}:`, error);
-        
-        // Log the error
         await supabase.from("notification_logs").insert({
           recipient_id: recipient.id,
           recipient_name: recipient.name,
-          title,
-          body,
+          title, body,
           tag: tag || null,
           data: { phone: phoneNumber },
           status: "failed",
           error_message: (error as Error).message,
         });
-        
         failed++;
       }
     });
@@ -278,7 +302,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Error in send-whatsapp:", error);
     return new Response(
-      JSON.stringify({ error: (error as Error).message }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
