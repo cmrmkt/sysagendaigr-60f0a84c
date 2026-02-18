@@ -74,22 +74,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq("id", userId)
         .single();
 
-      if (profileData) {
-        setProfile(profileData as Profile);
-
-        // Fetch organization
-        const { data: orgData } = await supabase
-          .from("organizations")
-          .select("*")
-          .eq("id", profileData.organization_id)
-          .single();
-
-        if (orgData) {
-          setOrganization(orgData as Organization);
-        }
-      }
-
-      // Fetch role
+      // Fetch role first so we know if admin
+      let fetchedRole: AppRole | null = null;
       const { data: roleData } = await supabase
         .from("user_roles")
         .select("role")
@@ -97,7 +83,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (roleData) {
-        setRole(roleData.role as AppRole);
+        fetchedRole = roleData.role as AppRole;
+        setRole(fetchedRole);
+      }
+
+      if (profileData) {
+        setProfile(profileData as Profile);
+
+        // Admins/super_admins read from base table; others use secure view
+        const isAdmin = fetchedRole === "admin" || fetchedRole === "super_admin";
+        
+        if (isAdmin) {
+          const { data: orgData } = await supabase
+            .from("organizations")
+            .select("*")
+            .eq("id", profileData.organization_id)
+            .single();
+          if (orgData) setOrganization(orgData as Organization);
+        } else {
+          // Use the secure view (excludes sensitive API credentials)
+          const { data: orgData } = await (supabase as any)
+            .from("organizations_safe")
+            .select("*")
+            .eq("id", profileData.organization_id)
+            .single();
+          if (orgData) setOrganization(orgData as Organization);
+        }
       }
     } catch (error) {
       console.error("Error fetching user data:", error);

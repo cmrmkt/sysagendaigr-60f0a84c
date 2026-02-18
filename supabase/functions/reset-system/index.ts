@@ -13,23 +13,49 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    const { resetKey, phone, phoneCountry } = await req.json();
-    
-    // Security check
-    if (resetKey !== "RESET_SYSTEM_2024_SECURE") {
+    // --- Auth: require super_admin JWT ---
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized - Invalid reset key" }),
+        JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+    const token = authHeader.replace("Bearer ", "");
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
     });
+    const { data: userData, error: authError } = await userClient.auth.getUser();
+    if (authError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Verify super_admin role
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userData.user.id)
+      .eq("role", "super_admin")
+      .single();
+
+    if (!roleData) {
+      return new Response(
+        JSON.stringify({ error: "Forbidden - Super admin access required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { phone, phoneCountry } = await req.json();
 
     console.log("Starting system reset...");
 
@@ -112,17 +138,17 @@ Deno.serve(async (req) => {
 
     console.log(`Creating super admin with email: ${email}`);
 
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+    const { data: authData, error: createAuthError } = await supabase.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
       user_metadata: { name: "Super Admin" },
     });
 
-    if (authError) {
-      console.error("Error creating auth user:", authError);
+    if (createAuthError) {
+      console.error("Error creating auth user:", createAuthError);
       return new Response(
-        JSON.stringify({ error: "Failed to create auth user", details: authError.message }),
+        JSON.stringify({ error: "Failed to create auth user", details: createAuthError.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -130,7 +156,6 @@ Deno.serve(async (req) => {
     const userId = authData.user.id;
     console.log(`Auth user created: ${userId}`);
 
-    // Create profile
     const { error: profileError } = await supabase
       .from("profiles")
       .insert({
@@ -150,19 +175,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Assign super_admin role
     const { error: roleError } = await supabase
       .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: "super_admin",
-      });
+      .insert({ user_id: userId, role: "super_admin" });
 
     if (roleError) {
       console.error("Error assigning role:", roleError);
     }
 
-    // Format phone for display
     const displayPhone = phoneCountry === "US"
       ? cleanPhone.replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3")
       : cleanPhone.replace(/(\d{2})(\d{5})(\d{4})/, "($1) $2-$3");
@@ -190,7 +210,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: String(error) }),
+      JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

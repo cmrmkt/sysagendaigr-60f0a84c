@@ -78,6 +78,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "announcements_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       event_collaborator_ministries: {
@@ -213,6 +220,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "event_tasks_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       event_templates: {
@@ -283,6 +297,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -396,6 +417,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "events_parent_event_id_fkey"
             columns: ["parent_event_id"]
             isOneToOne: false
@@ -462,6 +490,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ministries: {
@@ -498,6 +533,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ministries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
             referencedColumns: ["id"]
           },
         ]
@@ -700,6 +742,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       push_subscriptions: {
@@ -777,6 +826,13 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "scheduled_reminders_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
+            referencedColumns: ["id"]
+          },
         ]
       }
       usage_logs: {
@@ -825,6 +881,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "usage_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations_safe"
             referencedColumns: ["id"]
           },
           {
@@ -882,7 +945,90 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      organizations_safe: {
+        Row: {
+          address: string | null
+          billing_day: number | null
+          city: string | null
+          country_code: string | null
+          created_at: string | null
+          email: string | null
+          id: string | null
+          logo_url: string | null
+          name: string | null
+          phone: string | null
+          postal_code: string | null
+          reminder_settings: Json | null
+          slug: string | null
+          state: string | null
+          status: string | null
+          subscription_amount: number | null
+          subscription_status: string | null
+          suspended_at: string | null
+          suspended_reason: string | null
+          tax_id: string | null
+          trial_ends_at: string | null
+          updated_at: string | null
+          whatsapp_connected: boolean | null
+          whatsapp_connected_at: string | null
+          whatsapp_phone_number: string | null
+        }
+        Insert: {
+          address?: string | null
+          billing_day?: number | null
+          city?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          reminder_settings?: Json | null
+          slug?: string | null
+          state?: string | null
+          status?: string | null
+          subscription_amount?: number | null
+          subscription_status?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          tax_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          whatsapp_connected?: boolean | null
+          whatsapp_connected_at?: string | null
+          whatsapp_phone_number?: string | null
+        }
+        Update: {
+          address?: string | null
+          billing_day?: number | null
+          city?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string | null
+          logo_url?: string | null
+          name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          reminder_settings?: Json | null
+          slug?: string | null
+          state?: string | null
+          status?: string | null
+          subscription_amount?: number | null
+          subscription_status?: string | null
+          suspended_at?: string | null
+          suspended_reason?: string | null
+          tax_id?: string | null
+          trial_ends_at?: string | null
+          updated_at?: string | null
+          whatsapp_connected?: boolean | null
+          whatsapp_connected_at?: string | null
+          whatsapp_phone_number?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_org: { Args: { _user_id: string }; Returns: string }
