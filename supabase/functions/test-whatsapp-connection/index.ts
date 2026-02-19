@@ -52,21 +52,21 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ success: false, message: "Access denied" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fetch organization's Evolution API credentials
-    const { data: org, error: orgError } = await supabase
-      .from("organizations")
+    // Fetch credentials from dedicated table
+    const { data: creds, error: credsError } = await supabase
+      .from("organization_credentials")
       .select("evolution_api_url, evolution_api_key, evolution_instance_name")
-      .eq("id", payload.organization_id)
+      .eq("organization_id", payload.organization_id)
       .single();
 
-    if (orgError || !org) {
+    if (credsError || !creds) {
       return new Response(
-        JSON.stringify({ success: false, message: "Organização não encontrada" }),
+        JSON.stringify({ success: false, message: "Credenciais não encontradas" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const { evolution_api_url, evolution_api_key, evolution_instance_name } = org;
+    const { evolution_api_url, evolution_api_key, evolution_instance_name } = creds;
 
     if (!evolution_api_url || !evolution_api_key || !evolution_instance_name) {
       return new Response(

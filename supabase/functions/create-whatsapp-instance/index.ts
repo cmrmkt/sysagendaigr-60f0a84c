@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
     // Fetch organization data
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("id, slug, evolution_instance_name, whatsapp_connected")
+      .select("id, slug, whatsapp_connected")
       .eq("id", organization_id)
       .single();
 
@@ -163,8 +163,15 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check existing credentials
+    const { data: existingCreds } = await supabase
+      .from("organization_credentials")
+      .select("evolution_instance_name")
+      .eq("organization_id", organization_id)
+      .single();
+
     const shortId = organization_id.substring(0, 8);
-    const instanceName = org.evolution_instance_name || `igreja-${org.slug}-${shortId}`;
+    const instanceName = existingCreds?.evolution_instance_name || `igreja-${org.slug}-${shortId}`;
 
     console.log(`Creating instance: ${instanceName}`);
 
@@ -191,7 +198,7 @@ Deno.serve(async (req) => {
       
       if (isInstanceExistsError(responseData)) {
         console.log("Instance already exists, attempting to fetch QR code...");
-        await supabase.from("organizations").update({ evolution_instance_name: instanceName, evolution_api_url: globalEvolutionUrl }).eq("id", organization_id);
+        await supabase.from("organization_credentials").upsert({ organization_id, evolution_instance_name: instanceName, evolution_api_url: globalEvolutionUrl });
         
         const qrResult = await fetchQRCodeWithRetry(globalEvolutionUrl, globalEvolutionKey, instanceName);
         
@@ -213,11 +220,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { error: updateError } = await supabase.from("organizations").update({
+    const { error: updateError } = await supabase.from("organization_credentials").upsert({
+      organization_id,
       evolution_instance_name: instanceName,
       evolution_api_url: globalEvolutionUrl,
       evolution_api_key: responseData.hash || null,
-    }).eq("id", organization_id);
+    });
 
     if (updateError) console.error("Error updating organization:", updateError);
 

@@ -90,25 +90,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (profileData) {
         setProfile(profileData as Profile);
 
-        // Admins/super_admins read from base table; others use secure view
-        const isAdmin = fetchedRole === "admin" || fetchedRole === "super_admin";
-        
-        if (isAdmin) {
-          const { data: orgData } = await supabase
-            .from("organizations")
-            .select("*")
-            .eq("id", profileData.organization_id)
-            .single();
-          if (orgData) setOrganization(orgData as Organization);
-        } else {
-          // Use the secure view (excludes sensitive API credentials)
-          const { data: orgData } = await (supabase as any)
-            .from("organizations_safe")
-            .select("*")
-            .eq("id", profileData.organization_id)
-            .single();
-          if (orgData) setOrganization(orgData as Organization);
-        }
+        // All users read from the organizations table (sensitive credentials moved to organization_credentials)
+        const { data: orgData } = await supabase
+          .from("organizations")
+          .select("*")
+          .eq("id", profileData.organization_id)
+          .single();
+        if (orgData) setOrganization(orgData as Organization);
       }
     } catch (error) {
       console.error("Error fetching user data:", error);

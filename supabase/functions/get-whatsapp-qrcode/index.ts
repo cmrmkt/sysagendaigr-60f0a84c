@@ -84,10 +84,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Access denied" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fetch organization data
+    // Fetch credentials from dedicated table
+    const { data: creds } = await supabase
+      .from("organization_credentials")
+      .select("evolution_instance_name")
+      .eq("organization_id", organization_id)
+      .single();
+
+    // Fetch org status
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("evolution_instance_name, whatsapp_connected")
+      .select("whatsapp_connected")
       .eq("id", organization_id)
       .single();
 
@@ -95,7 +102,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Organização não encontrada" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if (!org.evolution_instance_name) {
+    if (!creds?.evolution_instance_name) {
       return new Response(JSON.stringify({ error: "Nenhuma instância configurada. Clique em 'Conectar WhatsApp' primeiro.", code: "INSTANCE_NOT_CREATED" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
@@ -103,8 +110,8 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ connected: true, message: "WhatsApp já está conectado" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log(`Fetching QR Code for instance: ${org.evolution_instance_name}`);
-    const result = await fetchQRCodeWithRetry(globalEvolutionUrl, globalEvolutionKey, org.evolution_instance_name);
+    console.log(`Fetching QR Code for instance: ${creds.evolution_instance_name}`);
+    const result = await fetchQRCodeWithRetry(globalEvolutionUrl, globalEvolutionKey, creds.evolution_instance_name);
 
     if (!result.success) {
       return new Response(JSON.stringify({ error: result.error }), { status: result.status || 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
