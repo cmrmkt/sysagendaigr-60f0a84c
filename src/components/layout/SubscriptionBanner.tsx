@@ -1,5 +1,6 @@
 import { AlertTriangle, Clock, MessageCircle, XCircle } from "lucide-react";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
@@ -7,10 +8,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-const WHATSAPP_LINK = "https://wa.me/5532999926735?text=Ol%C3%A1%2C%20Gostaria%20de%20pagar%20a%20assinatura%20do%20sistema%20de%20AgendaIGR";
+const buildWhatsAppLink = (orgName?: string) => {
+  const baseMessage = "Olá, Gostaria de pagar a assinatura do sistema de AgendaIGR";
+  const fullMessage = orgName ? `${baseMessage} (${orgName})` : baseMessage;
+  return `https://wa.me/5532999926735?text=${encodeURIComponent(fullMessage)}`;
+};
 
 const SubscriptionBanner = () => {
   const { status, isBlocked, message, trialDaysRemaining } = useSubscriptionStatus();
+  const { organization } = useAuth();
+  const whatsappLink = buildWhatsAppLink(organization?.name);
 
   // Não mostrar banner se tudo estiver ok
   if (!isBlocked && status !== "trial") {
@@ -33,7 +40,7 @@ const SubscriptionBanner = () => {
           <span className="hidden sm:inline">Entre em contato para ativar sua assinatura.</span>
         </p>
         <a
-          href={WHATSAPP_LINK}
+          href={whatsappLink}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 rounded-md bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-xs font-medium transition-colors flex-shrink-0"
@@ -57,7 +64,7 @@ const SubscriptionBanner = () => {
         ? "Conta suspensa" 
         : "Período de teste expirado";
     
-    const whatsappLink = WHATSAPP_LINK;
+    
     
     const description = message 
       ? `${message} Clique aqui para falar conosco no WhatsApp.`
