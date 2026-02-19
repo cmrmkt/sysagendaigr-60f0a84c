@@ -104,9 +104,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch organization
+    // Fetch organization and update last login
     let organization = null;
     if (profile?.organization_id) {
+      // Update last_login_at
+      await supabaseAdmin
+        .from("organizations")
+        .update({ last_login_at: new Date().toISOString() })
+        .eq("id", profile.organization_id);
+
       const { data: org, error: orgError } = await supabaseAdmin
         .from("organizations")
         .select("*")

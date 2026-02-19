@@ -1,0 +1,1 @@
+ALTER TABLE public.organizations ADD COLUMN last_login_at timestamptz;

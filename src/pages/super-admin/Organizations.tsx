@@ -314,7 +314,7 @@ const Organizations = () => {
                 <TableHead className="text-center">Usuários</TableHead>
                 <TableHead className="text-center">Eventos</TableHead>
                 <TableHead>Criado em</TableHead>
-                <TableHead>Último Acesso</TableHead>
+                <TableHead>Último Login</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -380,15 +380,15 @@ const Organizations = () => {
                         : "-"}
                     </TableCell>
                     <TableCell>
-                      {org.last_activity_at ? (
+                      {org.last_login_at ? (
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                           <span className="text-sm">
-                            {format(new Date(org.last_activity_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            {format(new Date(org.last_login_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                           </span>
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Sem atividade</span>
+                        <span className="text-sm text-muted-foreground">Sem login</span>
                       )}
                     </TableCell>
                     <TableCell>
