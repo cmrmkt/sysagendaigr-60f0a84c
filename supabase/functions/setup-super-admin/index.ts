@@ -15,9 +15,17 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // Secret key to authorize this setup (prevents unauthorized calls)
+    const expectedKey = Deno.env.get("SUPER_ADMIN_SETUP_KEY");
+    if (!expectedKey) {
+      return new Response(
+        JSON.stringify({ error: "Setup key not configured on server" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { setupKey } = await req.json();
     
-    if (setupKey !== "SETUP_SUPER_ADMIN_2024") {
+    if (!setupKey || setupKey !== expectedKey) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }

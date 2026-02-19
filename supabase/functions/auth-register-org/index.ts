@@ -84,7 +84,40 @@ Deno.serve(async (req) => {
     // Validation
     if (!orgName || !phone || !phoneCountry || !password || !adminName) {
       return new Response(
-        JSON.stringify({ error: "Todos os campos são obrigatórios" }),
+        JSON.stringify({ error: "Todos os campos obrigatórios devem ser preenchidos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate field lengths
+    if (orgName.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Nome da organização deve ter no máximo 100 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (adminName.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Nome do administrador deve ter no máximo 100 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate phone format (only digits, 7-15 chars)
+    const cleanPhoneCheck = phone.replace(/\D/g, "");
+    if (cleanPhoneCheck.length < 7 || cleanPhoneCheck.length > 15) {
+      return new Response(
+        JSON.stringify({ error: "Telefone inválido. Deve conter entre 7 e 15 dígitos" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate country code whitelist
+    const supportedCountries = ["BR", "US", "CA", "PT"];
+    if (!supportedCountries.includes(phoneCountry)) {
+      return new Response(
+        JSON.stringify({ error: "País não suportado. Países disponíveis: Brasil, EUA, Canadá, Portugal" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -92,6 +125,13 @@ Deno.serve(async (req) => {
     if (password.length < 6) {
       return new Response(
         JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (password.length > 72) {
+      return new Response(
+        JSON.stringify({ error: "A senha deve ter no máximo 72 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
