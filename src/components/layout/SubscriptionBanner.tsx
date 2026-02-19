@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, XCircle } from "lucide-react";
+import { AlertTriangle, Clock, MessageCircle, XCircle } from "lucide-react";
 import { useSubscriptionStatus } from "@/hooks/useSubscriptionStatus";
 import { cn } from "@/lib/utils";
 import {
@@ -6,6 +6,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+
+const WHATSAPP_LINK = "https://wa.me/5532999926735?text=Ol%C3%A1%2C%20Gostaria%20de%20pagar%20a%20assinatura%20do%20sistema%20de%20AgendaIGR";
 
 const SubscriptionBanner = () => {
   const { status, isBlocked, message, trialDaysRemaining } = useSubscriptionStatus();
@@ -23,13 +25,23 @@ const SubscriptionBanner = () => {
     return (
       <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center gap-2 text-amber-700 dark:text-amber-400">
         <Clock className="w-4 h-4 flex-shrink-0" />
-        <p className="text-sm">
+        <p className="text-sm flex-1">
           <span className="font-medium">Período de teste:</span>{" "}
           {trialDaysRemaining === 0 
             ? "Último dia! " 
             : `${trialDaysRemaining} ${trialDaysRemaining === 1 ? "dia restante" : "dias restantes"}. `}
           <span className="hidden sm:inline">Entre em contato para ativar sua assinatura.</span>
         </p>
+        <a
+          href={WHATSAPP_LINK}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 rounded-md bg-green-600 hover:bg-green-700 text-white px-3 py-1 text-xs font-medium transition-colors flex-shrink-0"
+        >
+          <MessageCircle className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Falar no WhatsApp</span>
+          <span className="sm:hidden">WhatsApp</span>
+        </a>
       </div>
     );
   }
@@ -45,7 +57,7 @@ const SubscriptionBanner = () => {
         ? "Conta suspensa" 
         : "Período de teste expirado";
     
-    const whatsappLink = "https://wa.me/5511999999999?text=Olá! Gostaria de ativar minha assinatura do Agenda IGR.";
+    const whatsappLink = WHATSAPP_LINK;
     
     const description = message 
       ? `${message} Clique aqui para falar conosco no WhatsApp.`
