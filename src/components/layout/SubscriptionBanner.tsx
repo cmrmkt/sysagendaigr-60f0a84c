@@ -23,7 +23,7 @@ const SubscriptionBanner = () => {
     if (trialDaysRemaining > 3) return null;
     
     return (
-      <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center gap-2 text-amber-700 dark:text-amber-400">
+      <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 flex items-center justify-center gap-2 text-amber-700 dark:text-amber-400 flex-wrap">
         <Clock className="w-4 h-4 flex-shrink-0" />
         <p className="text-sm flex-1">
           <span className="font-medium">Período de teste:</span>{" "}
