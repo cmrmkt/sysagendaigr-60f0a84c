@@ -75,6 +75,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate phone format and country
+    const cleanedPhone = (typeof phone === "string" ? phone : "").replace(/\D/g, "");
+    if (cleanedPhone.length < 8 || cleanedPhone.length > 15) {
+      return new Response(
+        JSON.stringify({ error: "Telefone inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const allowedCountries = ["BR", "US", "CA", "PT"];
+    if (!allowedCountries.includes(phoneCountry)) {
+      return new Response(
+        JSON.stringify({ error: "País do telefone inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const email = phoneToEmail(phone, phoneCountry);
     console.log(`Forgot password request for: ${email}`);
 
@@ -230,15 +247,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Always return identical response to prevent phone enumeration
+    console.log(`Password reset result: whatsapp_sent=${whatsappSent}`);
+    
     return new Response(
       JSON.stringify({
         success: true,
-        whatsapp_sent: whatsappSent,
-        message: whatsappSent
-          ? "Nova senha enviada via WhatsApp! Verifique suas mensagens."
-          : "Senha redefinida com sucesso! Como o WhatsApp não está disponível, entre em contato com o administrador para obter a nova senha.",
-        // If WhatsApp failed, show password directly as fallback
-        ...(whatsappSent ? {} : { temp_password: newPassword }),
+        message: "Se o número estiver cadastrado, uma nova senha foi enviada via WhatsApp.",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

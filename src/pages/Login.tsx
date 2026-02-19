@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Church, Eye, EyeOff, Loader2, ArrowLeft, Copy, Check } from "lucide-react";
+import { Church, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { PhoneInput } from "@/components/auth/PhoneInput";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,10 +28,8 @@ const Login = () => {
   const [forgotResult, setForgotResult] = useState<{
     success: boolean;
     message: string;
-    whatsapp_sent?: boolean;
-    temp_password?: string;
   } | null>(null);
-  const [copiedPassword, setCopiedPassword] = useState(false);
+  
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -92,23 +90,12 @@ const Login = () => {
     }
   };
 
-  const handleCopyTempPassword = async () => {
-    if (!forgotResult?.temp_password) return;
-    try {
-      await navigator.clipboard.writeText(forgotResult.temp_password);
-      setCopiedPassword(true);
-      toast.success("Senha copiada!");
-      setTimeout(() => setCopiedPassword(false), 2000);
-    } catch {
-      toast.error("Erro ao copiar");
-    }
-  };
 
   const handleBackToLogin = () => {
     setShowForgotPassword(false);
     setForgotResult(null);
     setForgotPhone("");
-    setCopiedPassword(false);
+    
   };
 
   if (authLoading) {
@@ -141,37 +128,9 @@ const Login = () => {
               {forgotResult ? (
                 // Result screen
                 <div className="space-y-4">
-                  <div className={`rounded-lg p-3 text-sm ${
-                    forgotResult.whatsapp_sent 
-                      ? "bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400"
-                      : "bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400"
-                  }`}>
+                  <div className="rounded-lg p-3 text-sm bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400">
                     {forgotResult.message}
                   </div>
-
-                  {/* Show temp password if WhatsApp failed */}
-                  {forgotResult.temp_password && (
-                    <div className="bg-muted rounded-lg p-3 space-y-2">
-                      <p className="text-xs text-muted-foreground font-medium">Sua nova senha temporária:</p>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 bg-background border rounded px-3 py-2 text-sm font-mono">
-                          {forgotResult.temp_password}
-                        </code>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={handleCopyTempPassword}
-                          className="shrink-0"
-                        >
-                          {copiedPassword ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        ⚠️ Altere sua senha após o login.
-                      </p>
-                    </div>
-                  )}
 
                   <Button
                     type="button"
