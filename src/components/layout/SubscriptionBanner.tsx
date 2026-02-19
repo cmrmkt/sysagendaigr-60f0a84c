@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/tooltip";
 
 const buildWhatsAppLink = (orgName?: string) => {
-  const baseMessage = "Olá, Gostaria de pagar a assinatura do sistema de AgendaIGR";
+  const baseMessage = "Olá, Gostaria de renovar a assinatura do sistema AgendaIGR";
   const fullMessage = orgName ? `${baseMessage} (${orgName})` : baseMessage;
   return `https://wa.me/5532999926735?text=${encodeURIComponent(fullMessage)}`;
 };
