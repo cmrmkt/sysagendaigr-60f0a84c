@@ -1,46 +1,54 @@
 
 
-## Resolver Definitivamente a Exposicao de Credenciais
+## Resolver Problemas de Seguranca Pendentes
 
-### Problema
-A tabela `organizations` ainda contem `evolution_api_url`, `evolution_api_key`, `evolution_instance_name`, `tax_id`, `billing_day`, `subscription_amount` — e a politica "Users see own organization" permite que qualquer membro leia tudo.
+Existem 3 itens pendentes, ordenados por prioridade:
 
-### Solucao: Tabela Separada para Credenciais
+---
 
-Mover as 3 colunas de API (`evolution_api_url`, `evolution_api_key`, `evolution_instance_name`) para uma nova tabela `organization_credentials`, acessivel apenas por admins e service role. A tabela `organizations` fica sem dados de API. Para os campos financeiros (`tax_id`, `billing_day`, `subscription_amount`), eles permanecem na tabela base pois sao necessarios para o funcionamento do sistema — o risco principal eram as credenciais de API.
+### 1. [CRITICO] Chave Hardcoded no setup-super-admin
 
-### Alteracoes
+A Edge Function `setup-super-admin` usa uma chave fixa no codigo (`"SETUP_SUPER_ADMIN_2024"`). Qualquer pessoa com acesso ao codigo pode criar um Super Admin.
 
-**1. Migracao SQL**
-- Criar tabela `organization_credentials` com RLS restrito a admins/super_admins
-- Migrar dados existentes das 3 colunas de API
-- Remover as 3 colunas sensiveis da tabela `organizations`
-- Remover a view `organizations_safe` (desnecessaria)
-- Remover a politica redundante "Admins see own organization"
+**Solucao:** Mover a chave para uma variavel de ambiente (Supabase Secret) e adicionar proteção extra.
 
-**2. Edge Functions (8 funcoes)**
-Atualizar para buscar credenciais de `organization_credentials` em vez de `organizations`:
-- `send-whatsapp`
-- `create-whatsapp-instance`
-- `check-whatsapp-status`
-- `disconnect-whatsapp`
-- `get-whatsapp-qrcode`
-- `test-whatsapp-connection`
-- `send-instant-reminder`
-- `process-reminders`
+**Alteracoes:**
+- Criar secret `SUPER_ADMIN_SETUP_KEY` com valor aleatorio forte
+- Atualizar `supabase/functions/setup-super-admin/index.ts` para ler de `Deno.env.get("SUPER_ADMIN_SETUP_KEY")`
 
-**3. Frontend**
-- `useWhatsAppSettings.ts`: Ler de `organizations` diretamente (sem credenciais), corrigir `isConfigured` para usar `whatsapp_connected`
-- `AuthContext.tsx`: Remover logica condicional admin/non-admin — todos leem de `organizations`
+---
 
-**4. Limpeza de findings de seguranca**
+### 2. [MEDIO] Validacao de Input no auth-register-org
 
-### Detalhes Tecnicos
+A funcao `auth-register-org` aceita dados sem validacao adequada (nome da org, tax ID, etc).
 
-| Componente | Alteracao |
-|---|---|
-| Migracao SQL | Criar `organization_credentials`, migrar dados, remover colunas e view |
-| 8 Edge Functions | Ler credenciais de `organization_credentials` via service role |
-| `useWhatsAppSettings.ts` | Remover campos de credenciais, usar `whatsapp_connected` |
-| `AuthContext.tsx` | Simplificar leitura (todos leem tabela base) |
+**Solucao:** Adicionar validacao de comprimento e formato para os campos de entrada.
+
+**Alteracoes:**
+- Atualizar `supabase/functions/auth-register-org/index.ts` com validacoes de:
+  - Nome da organizacao (max 100 chars, nao vazio)
+  - Telefone (formato numerico, tamanho valido)
+  - Country code (whitelist de paises suportados)
+  - Nome do admin (max 100 chars)
+  - Senha (min 6 chars)
+
+---
+
+### 3. [MEDIO] Leaked Password Protection (Config externa)
+
+Esta configuracao fica no painel do Supabase, nao no codigo. Precisa ser ativada manualmente.
+
+**Acao:** Acessar Supabase Dashboard > Authentication > Settings > Security e ativar "Leaked Password Protection". Isso impede que usuarios usem senhas ja vazadas em brechas de dados.
+
+---
+
+### Resumo
+
+| Item | Severidade | Tipo | Esforco |
+|---|---|---|---|
+| Setup key hardcoded | Error | Codigo (Edge Function + Secret) | Baixo |
+| Input validation auth-register-org | Warn | Codigo (Edge Function) | Baixo |
+| Leaked password protection | Warn | Config externa (Supabase Dashboard) | Manual |
+
+Os itens 1 e 2 serao resolvidos via codigo. O item 3 requer acao manual no painel do Supabase.
 
