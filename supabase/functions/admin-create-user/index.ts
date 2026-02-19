@@ -124,12 +124,61 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Prevent creating super_admin
-    if (role === "super_admin" as any) {
+    // Input length and format validation
+    if (typeof name !== "string" || name.trim().length === 0 || name.length > 100) {
       return new Response(
-        JSON.stringify({ error: "Não é possível criar super administradores" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Nome deve ter entre 1 e 100 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    const cleanedPhone = phone.replace(/\D/g, "");
+    if (cleanedPhone.length < 8 || cleanedPhone.length > 15) {
+      return new Response(
+        JSON.stringify({ error: "Telefone inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const allowedCountries = ["BR", "US", "CA", "PT"];
+    if (!allowedCountries.includes(phoneCountry)) {
+      return new Response(
+        JSON.stringify({ error: "País do telefone inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const allowedRoles = ["admin", "leader", "viewer"];
+    if (!allowedRoles.includes(role)) {
+      return new Response(
+        JSON.stringify({ error: "Função inválida" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (userEmail && (typeof userEmail !== "string" || userEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail))) {
+      return new Response(
+        JSON.stringify({ error: "E-mail inválido" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (ministryAssociations) {
+      if (!Array.isArray(ministryAssociations) || ministryAssociations.length > 50) {
+        return new Response(
+          JSON.stringify({ error: "Associações de ministério inválidas" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      for (const assoc of ministryAssociations) {
+        if (!assoc.ministryId || !uuidRegex.test(assoc.ministryId) || !["leader", "member"].includes(assoc.role)) {
+          return new Response(
+            JSON.stringify({ error: "Associação de ministério inválida" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     }
 
     const internalEmail = phoneToEmail(phone, phoneCountry);

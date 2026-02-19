@@ -101,6 +101,36 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Validate input lengths and formats
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(organization_id)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid organization_id" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!Array.isArray(recipient_ids) || recipient_ids.length > 500 || !recipient_ids.every((id: string) => uuidRegex.test(id))) {
+      return new Response(
+        JSON.stringify({ error: "Invalid recipient_ids" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (typeof title !== "string" || title.length > 500) {
+      return new Response(
+        JSON.stringify({ error: "Title too long (max 500 chars)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (typeof body !== "string" || body.length > 5000) {
+      return new Response(
+        JSON.stringify({ error: "Body too long (max 5000 chars)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Validate caller: check JWT and org membership
     // Allow service-role calls (from other edge functions like process-reminders)
     const authHeader = req.headers.get("Authorization");
