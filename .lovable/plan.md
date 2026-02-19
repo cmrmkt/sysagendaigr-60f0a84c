@@ -1,89 +1,69 @@
 
 
-## Corrigir Exposicao de Credenciais na Tabela Organizations
+## Resolver Definitivamente a Exposicao de Credenciais
 
-### Problema
-A politica RLS "Users see own organization" permite que **qualquer usuario autenticado** da organizacao leia todas as colunas da tabela `organizations`, incluindo credenciais sensiveis:
-- `evolution_api_url` (URL da API do WhatsApp)
-- `evolution_api_key` (Chave secreta da API)
-- `evolution_instance_name` (Nome da instancia)
+### Problema Raiz
+A abordagem anterior com view segura criou um ciclo impossivel:
+- `security_invoker = true` exige SELECT na tabela base para funcionar
+- Mas se o usuario tem SELECT na tabela base, ele pode consultar diretamente e ver TODAS as colunas, incluindo credenciais
 
-Isso significa que um usuario com papel "viewer" ou "leader" pode extrair essas credenciais e abusar da integracao WhatsApp.
+### Solucao Definitiva: Tabela Separada para Credenciais
 
-### Solucao
-
-Criar uma **view segura** da tabela `organizations` que exclui as colunas sensiveis, e ajustar as politicas RLS para que usuarios comuns so acessem a view.
+Mover `evolution_api_url`, `evolution_api_key` e `evolution_instance_name` para uma tabela separada `organization_credentials`, acessivel apenas por admins e service role. Assim a tabela `organizations` fica segura para leitura por todos.
 
 ### Alteracoes
 
 **1. Migracao SQL**
 
-- Criar a view `organizations_safe` com `security_invoker = on`, excluindo `evolution_api_url`, `evolution_api_key` e `evolution_instance_name`
-- Remover a politica "Users see own organization" atual (que da SELECT completo)
-- Criar nova politica "Users see own organization (safe)" que permite SELECT somente para admins na tabela base, e redirecionar usuarios comuns para a view
-- Na pratica: manter SELECT na tabela base **apenas para admins e super_admins**, e criar politica SELECT na view para usuarios comuns
-
-Porem, views com `security_invoker` herdam as politicas da tabela base, entao a abordagem correta e:
-
-a) Alterar a politica SELECT existente "Users see own organization" para **apenas admins**:
-```sql
-DROP POLICY "Users see own organization" ON public.organizations;
-
-CREATE POLICY "Admins see own organization"
-ON public.organizations FOR SELECT
-USING (
-  id = get_user_org(auth.uid())
-  AND is_org_admin(auth.uid())
-);
+```text
++-------------------------------+
+|    organization_credentials   |
++-------------------------------+
+| organization_id (PK, FK)      |
+| evolution_api_url             |
+| evolution_api_key             |
+| evolution_instance_name       |
++-------------------------------+
+  RLS: apenas admins e super_admins
 ```
 
-b) Criar uma view segura para usuarios comuns (sem colunas sensiveis):
-```sql
-CREATE VIEW public.organizations_safe
-WITH (security_invoker = false) AS
-SELECT id, name, slug, email, phone, address, logo_url,
-       country_code, tax_id, city, state, postal_code,
-       status, subscription_status, subscription_amount,
-       billing_day, trial_ends_at, suspended_at,
-       suspended_reason, reminder_settings,
-       whatsapp_connected, whatsapp_connected_at,
-       whatsapp_phone_number, created_at, updated_at
-FROM public.organizations;
-```
+- Criar tabela `organization_credentials` com RLS restrito a admins
+- Migrar dados existentes das 3 colunas de `organizations` para a nova tabela
+- Remover as 3 colunas sensiveis da tabela `organizations`
+- Remover a view `organizations_safe` (desnecessaria agora)
+- Remover a politica "Admins see own organization" (redundante)
+- Manter apenas "Users see own organization" na tabela base (agora segura)
 
-c) Conceder acesso a view para usuarios autenticados e criar RLS via funcao ou grant.
+**2. Edge Functions (8 funcoes)**
+Atualizar as funcoes que leem credenciais para buscar de `organization_credentials` em vez de `organizations`:
+- `send-whatsapp`
+- `create-whatsapp-instance`
+- `check-whatsapp-status`
+- `disconnect-whatsapp`
+- `get-whatsapp-qrcode`
+- `test-whatsapp-connection`
+- `send-instant-reminder`
+- `process-reminders`
 
-**Nota importante:** Views em Postgres nao suportam RLS diretamente. Para a view funcionar com isolamento, usamos `security_invoker = false` (SECURITY DEFINER) e adicionamos a clausula WHERE na definicao da view usando `auth.uid()`:
+**3. Frontend - `src/hooks/useWhatsAppSettings.ts`**
+- Remover campos de credenciais da interface `WhatsAppSettings`
+- Ler diretamente da tabela `organizations` (agora segura, sem credenciais)
+- Corrigir `isConfigured` para usar `whatsapp_connected` em vez de verificar credenciais vazias
 
-```sql
-CREATE VIEW public.organizations_safe
-WITH (security_invoker = false) AS
-SELECT id, name, slug, ...
-FROM public.organizations
-WHERE id = get_user_org(auth.uid());
-```
+**4. Frontend - `src/contexts/AuthContext.tsx`**
+- Remover logica condicional admin/non-admin para leitura de organizacao
+- Todos os usuarios podem ler de `organizations` diretamente (sem dados sensiveis)
 
-Isso garante que cada usuario so ve sua propria organizacao, sem expor credenciais.
+**5. Limpeza de Findings**
+- Deletar finding `organizations_table_sensitive_exposure`
+- Deletar/ignorar finding `organizations_safe_no_rls` (view sera removida)
 
-**2. Frontend - `src/hooks/useWhatsAppSettings.ts`**
-- Remover a leitura de `evolution_api_url`, `evolution_api_key`, `evolution_instance_name` do cliente
-- O hook ja nao precisa dessas colunas porque todas as operacoes WhatsApp sao feitas via Edge Functions (que usam service_role_key)
-- Substituir `isConfigured` por verificar apenas `whatsapp_connected` ou `evolution_instance_name` via a view segura
-
-**3. Frontend - `src/contexts/AuthContext.tsx` e outros hooks**
-- Verificar se algum hook le da tabela `organizations` diretamente e ajustar para usar `organizations_safe` quando o usuario nao for admin
-- O hook `useOrganizations` (super admin) continuara lendo da tabela base (a politica "Super admins manage organizations" ja permite)
-
-**4. Edge Functions** (sem alteracao necessaria)
-- Todas as edge functions ja usam `SUPABASE_SERVICE_ROLE_KEY`, que ignora RLS
-- Continuarao lendo `evolution_api_url`, `evolution_api_key`, `evolution_instance_name` normalmente
-
-### Resumo das alteracoes por arquivo
+### Resumo
 
 | Arquivo | Alteracao |
 |---|---|
-| Migracao SQL | Criar view `organizations_safe`, restringir politica SELECT da tabela base |
-| `src/hooks/useWhatsAppSettings.ts` | Remover leitura de credenciais, usar apenas campos nao-sensiveis |
-| `src/contexts/AuthContext.tsx` | Usar `organizations_safe` para leitura de dados da org do usuario |
-| Edge Functions | Nenhuma alteracao |
+| Migracao SQL | Criar `organization_credentials`, migrar dados, remover colunas e view |
+| 8 Edge Functions | Ler credenciais de `organization_credentials` |
+| `useWhatsAppSettings.ts` | Remover campos de credenciais, corrigir `isConfigured` |
+| `AuthContext.tsx` | Simplificar leitura de organizacao (todos leem da tabela base) |
 
