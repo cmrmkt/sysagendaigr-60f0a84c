@@ -146,10 +146,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Fetch organization's Evolution API credentials
+    // Check if WhatsApp is connected
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("evolution_api_url, evolution_api_key, evolution_instance_name, whatsapp_connected")
+      .select("whatsapp_connected")
       .eq("id", organization_id)
       .single();
 
@@ -173,9 +173,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { evolution_api_url, evolution_api_key, evolution_instance_name } = org;
+    // Fetch credentials from dedicated table
+    const { data: creds, error: credsError } = await supabase
+      .from("organization_credentials")
+      .select("evolution_api_url, evolution_api_key, evolution_instance_name")
+      .eq("organization_id", organization_id)
+      .single();
 
-    if (!evolution_api_url || !evolution_api_key || !evolution_instance_name) {
+    if (credsError || !creds || !creds.evolution_api_url || !creds.evolution_api_key || !creds.evolution_instance_name) {
       console.error("WhatsApp not configured for organization:", organization_id);
       return new Response(
         JSON.stringify({ 
@@ -185,6 +190,8 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const { evolution_api_url, evolution_api_key, evolution_instance_name } = creds;
 
     // Fetch recipients' phone numbers
     const { data: recipients, error: recipientsError } = await supabase

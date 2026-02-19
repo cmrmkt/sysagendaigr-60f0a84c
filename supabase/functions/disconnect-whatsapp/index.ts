@@ -62,10 +62,17 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Admin access required" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Fetch organization data
+    // Fetch credentials from dedicated table
+    const { data: creds } = await supabase
+      .from("organization_credentials")
+      .select("evolution_instance_name")
+      .eq("organization_id", organization_id)
+      .single();
+
+    // Also fetch org status
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("evolution_instance_name, whatsapp_connected")
+      .select("whatsapp_connected")
       .eq("id", organization_id)
       .single();
 
@@ -73,12 +80,12 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Organização não encontrada" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if (!org.evolution_instance_name) {
+    if (!creds?.evolution_instance_name) {
       return new Response(JSON.stringify({ success: true, message: "Nenhuma instância para desconectar" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     if (delete_instance) {
-      const evolutionUrl = `${globalEvolutionUrl}/instance/delete/${org.evolution_instance_name}`;
+      const evolutionUrl = `${globalEvolutionUrl}/instance/delete/${creds.evolution_instance_name}`;
       console.log("Deleting instance:", evolutionUrl);
       const response = await fetch(evolutionUrl, { method: "DELETE", headers: { "apikey": globalEvolutionKey } });
       if (!response.ok && response.status !== 404) {
@@ -86,7 +93,7 @@ Deno.serve(async (req) => {
         console.error("Error deleting instance:", errorData);
       }
     } else {
-      const evolutionUrl = `${globalEvolutionUrl}/instance/logout/${org.evolution_instance_name}`;
+      const evolutionUrl = `${globalEvolutionUrl}/instance/logout/${creds.evolution_instance_name}`;
       console.log("Logging out instance:", evolutionUrl);
       const response = await fetch(evolutionUrl, { method: "DELETE", headers: { "apikey": globalEvolutionKey } });
       if (!response.ok && response.status !== 404) {
@@ -95,8 +102,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Update credentials table
+    if (delete_instance) {
+      await supabase.from("organization_credentials").update({
+        evolution_instance_name: null, evolution_api_url: null, evolution_api_key: null,
+      }).eq("organization_id", organization_id);
+    }
+
+    // Update organizations table
     const updateData = delete_instance
-      ? { evolution_instance_name: null, evolution_api_url: null, evolution_api_key: null, whatsapp_connected: false, whatsapp_connected_at: null, whatsapp_phone_number: null }
+      ? { whatsapp_connected: false, whatsapp_connected_at: null, whatsapp_phone_number: null }
       : { whatsapp_connected: false, whatsapp_connected_at: null, whatsapp_phone_number: null };
 
     const { error: updateError } = await supabase.from("organizations").update(updateData).eq("id", organization_id);

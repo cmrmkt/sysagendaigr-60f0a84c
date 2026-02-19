@@ -5,9 +5,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useEffect, useRef, useCallback } from "react";
 
 export interface WhatsAppSettings {
-  evolution_api_url: string;
-  evolution_api_key: string;
-  evolution_instance_name: string;
   whatsapp_connected: boolean;
   whatsapp_connected_at: string | null;
   whatsapp_phone_number: string | null;
@@ -28,9 +25,6 @@ export interface QRCodeData {
 }
 
 const DEFAULT_WHATSAPP_SETTINGS: WhatsAppSettings = {
-  evolution_api_url: "",
-  evolution_api_key: "",
-  evolution_instance_name: "",
   whatsapp_connected: false,
   whatsapp_connected_at: null,
   whatsapp_phone_number: null,
@@ -48,9 +42,9 @@ export const useWhatsAppSettings = () => {
     queryFn: async () => {
       if (!effectiveOrganization?.id) return DEFAULT_WHATSAPP_SETTINGS;
 
-      // Only read non-sensitive fields; credentials are managed server-side via edge functions
-      const { data, error } = await (supabase as any)
-        .from("organizations_safe")
+      // Read non-sensitive fields from organizations table
+      const { data, error } = await supabase
+        .from("organizations")
         .select("whatsapp_connected, whatsapp_connected_at, whatsapp_phone_number")
         .eq("id", effectiveOrganization.id)
         .single();
@@ -58,12 +52,9 @@ export const useWhatsAppSettings = () => {
       if (error) throw error;
 
       return {
-        evolution_api_url: "",
-        evolution_api_key: "",
-        evolution_instance_name: "",
-        whatsapp_connected: (data as any)?.whatsapp_connected || false,
-        whatsapp_connected_at: (data as any)?.whatsapp_connected_at || null,
-        whatsapp_phone_number: (data as any)?.whatsapp_phone_number || null,
+        whatsapp_connected: data?.whatsapp_connected || false,
+        whatsapp_connected_at: data?.whatsapp_connected_at || null,
+        whatsapp_phone_number: data?.whatsapp_phone_number || null,
       };
     },
     enabled: !!effectiveOrganization?.id,
@@ -260,13 +251,8 @@ export const useWhatsAppSettings = () => {
     };
   }, [stopPolling]);
 
-  const isConfigured = Boolean(
-    query.data?.evolution_api_url &&
-    query.data?.evolution_api_key &&
-    query.data?.evolution_instance_name
-  );
-
   const isConnected = query.data?.whatsapp_connected || false;
+  const isConfigured = isConnected; // Configuration is managed server-side now
 
   return {
     settings: query.data || DEFAULT_WHATSAPP_SETTINGS,

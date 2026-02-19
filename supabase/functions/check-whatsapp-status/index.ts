@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
     // Fetch organization data
     const { data: org, error: orgError } = await supabase
       .from("organizations")
-      .select("evolution_instance_name, whatsapp_connected, whatsapp_phone_number")
+      .select("whatsapp_connected, whatsapp_phone_number")
       .eq("id", organization_id)
       .single();
 
@@ -76,14 +76,21 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "Organização não encontrada" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    if (!org.evolution_instance_name) {
+    // Fetch credentials from dedicated table
+    const { data: creds } = await supabase
+      .from("organization_credentials")
+      .select("evolution_instance_name")
+      .eq("organization_id", organization_id)
+      .single();
+
+    if (!creds?.evolution_instance_name) {
       return new Response(
         JSON.stringify({ connected: false, state: "not_created", message: "Instância não criada" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const evolutionUrl = `${globalEvolutionUrl}/instance/connectionState/${org.evolution_instance_name}`;
+    const evolutionUrl = `${globalEvolutionUrl}/instance/connectionState/${creds.evolution_instance_name}`;
     console.log("Checking connection state:", evolutionUrl);
     
     const response = await fetch(evolutionUrl, { method: "GET", headers: { "apikey": globalEvolutionKey } });
@@ -92,8 +99,11 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       if (response.status === 404) {
+        await supabase.from("organization_credentials").update({
+          evolution_instance_name: null,
+        }).eq("organization_id", organization_id);
         await supabase.from("organizations").update({
-          evolution_instance_name: null, whatsapp_connected: false, whatsapp_connected_at: null, whatsapp_phone_number: null,
+          whatsapp_connected: false, whatsapp_connected_at: null, whatsapp_phone_number: null,
         }).eq("id", organization_id);
         return new Response(JSON.stringify({ connected: false, state: "not_found", message: "Instância não encontrada" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
