@@ -2,40 +2,24 @@
 
 ## Resolver Definitivamente a Exposicao de Credenciais
 
-### Problema Raiz
-A abordagem anterior com view segura criou um ciclo impossivel:
-- `security_invoker = true` exige SELECT na tabela base para funcionar
-- Mas se o usuario tem SELECT na tabela base, ele pode consultar diretamente e ver TODAS as colunas, incluindo credenciais
+### Problema
+A tabela `organizations` ainda contem `evolution_api_url`, `evolution_api_key`, `evolution_instance_name`, `tax_id`, `billing_day`, `subscription_amount` — e a politica "Users see own organization" permite que qualquer membro leia tudo.
 
-### Solucao Definitiva: Tabela Separada para Credenciais
+### Solucao: Tabela Separada para Credenciais
 
-Mover `evolution_api_url`, `evolution_api_key` e `evolution_instance_name` para uma tabela separada `organization_credentials`, acessivel apenas por admins e service role. Assim a tabela `organizations` fica segura para leitura por todos.
+Mover as 3 colunas de API (`evolution_api_url`, `evolution_api_key`, `evolution_instance_name`) para uma nova tabela `organization_credentials`, acessivel apenas por admins e service role. A tabela `organizations` fica sem dados de API. Para os campos financeiros (`tax_id`, `billing_day`, `subscription_amount`), eles permanecem na tabela base pois sao necessarios para o funcionamento do sistema — o risco principal eram as credenciais de API.
 
 ### Alteracoes
 
 **1. Migracao SQL**
-
-```text
-+-------------------------------+
-|    organization_credentials   |
-+-------------------------------+
-| organization_id (PK, FK)      |
-| evolution_api_url             |
-| evolution_api_key             |
-| evolution_instance_name       |
-+-------------------------------+
-  RLS: apenas admins e super_admins
-```
-
-- Criar tabela `organization_credentials` com RLS restrito a admins
-- Migrar dados existentes das 3 colunas de `organizations` para a nova tabela
+- Criar tabela `organization_credentials` com RLS restrito a admins/super_admins
+- Migrar dados existentes das 3 colunas de API
 - Remover as 3 colunas sensiveis da tabela `organizations`
-- Remover a view `organizations_safe` (desnecessaria agora)
-- Remover a politica "Admins see own organization" (redundante)
-- Manter apenas "Users see own organization" na tabela base (agora segura)
+- Remover a view `organizations_safe` (desnecessaria)
+- Remover a politica redundante "Admins see own organization"
 
 **2. Edge Functions (8 funcoes)**
-Atualizar as funcoes que leem credenciais para buscar de `organization_credentials` em vez de `organizations`:
+Atualizar para buscar credenciais de `organization_credentials` em vez de `organizations`:
 - `send-whatsapp`
 - `create-whatsapp-instance`
 - `check-whatsapp-status`
@@ -45,25 +29,18 @@ Atualizar as funcoes que leem credenciais para buscar de `organization_credentia
 - `send-instant-reminder`
 - `process-reminders`
 
-**3. Frontend - `src/hooks/useWhatsAppSettings.ts`**
-- Remover campos de credenciais da interface `WhatsAppSettings`
-- Ler diretamente da tabela `organizations` (agora segura, sem credenciais)
-- Corrigir `isConfigured` para usar `whatsapp_connected` em vez de verificar credenciais vazias
+**3. Frontend**
+- `useWhatsAppSettings.ts`: Ler de `organizations` diretamente (sem credenciais), corrigir `isConfigured` para usar `whatsapp_connected`
+- `AuthContext.tsx`: Remover logica condicional admin/non-admin — todos leem de `organizations`
 
-**4. Frontend - `src/contexts/AuthContext.tsx`**
-- Remover logica condicional admin/non-admin para leitura de organizacao
-- Todos os usuarios podem ler de `organizations` diretamente (sem dados sensiveis)
+**4. Limpeza de findings de seguranca**
 
-**5. Limpeza de Findings**
-- Deletar finding `organizations_table_sensitive_exposure`
-- Deletar/ignorar finding `organizations_safe_no_rls` (view sera removida)
+### Detalhes Tecnicos
 
-### Resumo
-
-| Arquivo | Alteracao |
+| Componente | Alteracao |
 |---|---|
 | Migracao SQL | Criar `organization_credentials`, migrar dados, remover colunas e view |
-| 8 Edge Functions | Ler credenciais de `organization_credentials` |
-| `useWhatsAppSettings.ts` | Remover campos de credenciais, corrigir `isConfigured` |
-| `AuthContext.tsx` | Simplificar leitura de organizacao (todos leem da tabela base) |
+| 8 Edge Functions | Ler credenciais de `organization_credentials` via service role |
+| `useWhatsAppSettings.ts` | Remover campos de credenciais, usar `whatsapp_connected` |
+| `AuthContext.tsx` | Simplificar leitura (todos leem tabela base) |
 
