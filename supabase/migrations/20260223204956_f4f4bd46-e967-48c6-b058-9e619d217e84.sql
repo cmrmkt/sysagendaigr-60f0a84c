@@ -1,0 +1,1 @@
+UPDATE organizations SET trial_ends_at = '2026-03-02T23:59:59+00' WHERE id = '2dffcbe4-9a81-4ef7-ab00-9eb0a7a09075';
