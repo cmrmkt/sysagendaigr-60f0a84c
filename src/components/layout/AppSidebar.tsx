@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
- import { Calendar, Users, Church, LogOut, Menu, X, LayoutDashboard, Megaphone, ListTodo, KeyRound, CalendarClock, ChevronUp, Moon, Sun, Bell, Settings, MessageCircle, BookOpen } from "lucide-react";
+ import { Calendar, Users, Church, LogOut, Menu, X, LayoutDashboard, Megaphone, ListTodo, KeyRound, CalendarClock, ChevronUp, Moon, Sun, Bell, Settings, MessageCircle, BookOpen, Download } from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ChangePasswordModal } from "@/components/auth/ChangePasswordModal";
 import { differenceInDays } from "date-fns";
 import { useTheme } from "next-themes";
+import { useInstallPrompt } from "@/hooks/useInstallPrompt";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +39,7 @@ const AppSidebar = () => {
   const navigate = useNavigate();
   const { profile, role, logout, organization } = useAuth();
   const { theme, setTheme } = useTheme();
+  const { canInstall, promptInstall, isInstalled } = useInstallPrompt();
 
    const isAdmin = role === "admin" || role === "super_admin";
  
@@ -292,6 +294,16 @@ const AppSidebar = () => {
                    </DropdownMenuItem>
                  </>
                )}
+              
+              {canInstall && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={promptInstall}>
+                    <Download className="w-4 h-4 mr-2" />
+                    <span>Instalar App</span>
+                  </DropdownMenuItem>
+                </>
+              )}
               
               <DropdownMenuSeparator />
               {/* Sair */}
