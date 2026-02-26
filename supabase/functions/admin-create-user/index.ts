@@ -156,7 +156,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (userEmail && (typeof userEmail !== "string" || userEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail))) {
+    if (!userEmail || typeof userEmail !== "string" || userEmail.trim().length === 0) {
+      return new Response(
+        JSON.stringify({ error: "E-mail é obrigatório" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (userEmail.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
       return new Response(
         JSON.stringify({ error: "E-mail inválido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }

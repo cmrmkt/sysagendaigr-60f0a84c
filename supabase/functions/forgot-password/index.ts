@@ -209,17 +209,25 @@ Deno.serve(async (req) => {
 
       // Fallback: global Evolution
       if (!whatsappSent && globalEvolutionUrl && globalEvolutionKey) {
+        const globalInstanceName = Deno.env.get("GLOBAL_EVOLUTION_INSTANCE_NAME") || "agendaigr-global";
         try {
           const phoneForWA = formatPhoneForWhatsApp(profile.phone, profile.phone_country || phoneCountry || "BR");
+          console.log(`Attempting global WhatsApp send to ${phoneForWA} via instance ${globalInstanceName}`);
           const response = await fetch(
-            `${globalEvolutionUrl}/message/sendText/agendaigr-global`,
+            `${globalEvolutionUrl}/message/sendText/${globalInstanceName}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json", apikey: globalEvolutionKey },
               body: JSON.stringify({ number: phoneForWA, text: waMessage }),
             }
           );
-          if (response.ok) { whatsappSent = true; console.log("WhatsApp sent via global instance"); }
+          const responseBody = await response.text();
+          if (response.ok) {
+            whatsappSent = true;
+            console.log("WhatsApp sent via global instance");
+          } else {
+            console.error(`Global WhatsApp failed (${response.status}): ${responseBody}`);
+          }
         } catch (e) { console.error("Error sending via global WhatsApp:", e); }
       }
     }
@@ -228,12 +236,21 @@ Deno.serve(async (req) => {
     let emailSent = false;
     const profileEmail = profile.email;
 
-    if (profileEmail) {
-      // Send email notification via WhatsApp-style message through Evolution API isn't possible
-      // We'll use Supabase's built-in email by updating user metadata with the password hint
-      // For now, log it; the WhatsApp message is the primary channel
-      console.log(`User has email ${profileEmail}. WhatsApp is primary delivery channel.`);
-      // Note: In a future iteration, integrate a transactional email service for this
+    if (profileEmail && !profileEmail.endsWith("@phone.agendaigr.app")) {
+      try {
+        console.log(`Attempting Supabase password reset email to: ${profileEmail}`);
+        const { error: resetEmailError } = await supabase.auth.resetPasswordForEmail(profileEmail, {
+          redirectTo: "https://agendaigr.cmrsys.com.br/login",
+        });
+        if (resetEmailError) {
+          console.error("Error sending reset email:", resetEmailError);
+        } else {
+          emailSent = true;
+          console.log("Password reset email sent successfully");
+        }
+      } catch (e) {
+        console.error("Error sending reset email:", e);
+      }
     }
 
     // Log the action
@@ -255,10 +272,12 @@ Deno.serve(async (req) => {
 
     // Build response message
     let responseMessage = genericSuccess.message;
-    if (whatsappSent && profileEmail) {
-      responseMessage = "Uma nova senha foi enviada via WhatsApp.";
+    if (whatsappSent && emailSent) {
+      responseMessage = "Uma nova senha foi enviada via WhatsApp e um link de redefinição foi enviado para o e-mail cadastrado.";
     } else if (whatsappSent) {
       responseMessage = "Uma nova senha foi enviada via WhatsApp.";
+    } else if (emailSent) {
+      responseMessage = "Um link de redefinição de senha foi enviado para o e-mail cadastrado.";
     }
 
     console.log(`Password reset result: whatsapp_sent=${whatsappSent}, email_sent=${emailSent}`);
