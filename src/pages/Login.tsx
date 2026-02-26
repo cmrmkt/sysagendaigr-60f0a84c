@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Church, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
+import { Church, Eye, EyeOff, Loader2, ArrowLeft, Phone, Mail } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { PhoneInput } from "@/components/auth/PhoneInput";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,12 @@ import { toast } from "sonner";
 const Login = () => {
   const navigate = useNavigate();
   const { login, isAuthenticated, isLoading: authLoading, role } = useAuth();
+
+  // Login method toggle
+  const [loginMethod, setLoginMethod] = useState<"phone" | "email">("phone");
   const [phone, setPhone] = useState("");
   const [phoneCountry, setPhoneCountry] = useState<"BR" | "US" | "CA" | "PT">("BR");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,14 +26,12 @@ const Login = () => {
 
   // Forgot password states
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [forgotMethod, setForgotMethod] = useState<"phone" | "email">("phone");
   const [forgotPhone, setForgotPhone] = useState("");
   const [forgotCountry, setForgotCountry] = useState<"BR" | "US" | "CA" | "PT">("BR");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [forgotResult, setForgotResult] = useState<{
-    success: boolean;
-    message: string;
-  } | null>(null);
-  
+  const [forgotResult, setForgotResult] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -45,9 +47,16 @@ const Login = () => {
     e.preventDefault();
     setError(null);
 
-    if (!phone || phone.length < 10) {
-      setError("Informe um número de telefone válido.");
-      return;
+    if (loginMethod === "phone") {
+      if (!phone || phone.length < 10) {
+        setError("Informe um número de telefone válido.");
+        return;
+      }
+    } else {
+      if (!email || !email.includes("@") || email.length < 5) {
+        setError("Informe um e-mail válido.");
+        return;
+      }
     }
 
     if (!password || password.length < 6) {
@@ -56,7 +65,9 @@ const Login = () => {
     }
 
     setIsSubmitting(true);
-    const result = await login(phone, phoneCountry, password);
+    const result = loginMethod === "phone"
+      ? await login(phone, phoneCountry, password)
+      : await login(email, "EMAIL", password);
     if (!result.success) {
       setError(result.error || "Erro ao fazer login.");
     }
@@ -67,21 +78,28 @@ const Login = () => {
     e.preventDefault();
     setForgotResult(null);
 
-    const digits = forgotPhone.replace(/\D/g, "");
-    if (!digits || digits.length < 9) {
-      toast.error("Informe um número de telefone válido.");
-      return;
+    if (forgotMethod === "phone") {
+      const digits = forgotPhone.replace(/\D/g, "");
+      if (!digits || digits.length < 9) {
+        toast.error("Informe um número de telefone válido.");
+        return;
+      }
+    } else {
+      if (!forgotEmail || !forgotEmail.includes("@")) {
+        toast.error("Informe um e-mail válido.");
+        return;
+      }
     }
 
     setForgotLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("forgot-password", {
-        body: { phone: forgotPhone, phoneCountry: forgotCountry },
-      });
+      const body = forgotMethod === "phone"
+        ? { phone: forgotPhone, phoneCountry: forgotCountry }
+        : { email: forgotEmail.trim().toLowerCase() };
 
+      const { data, error } = await supabase.functions.invoke("forgot-password", { body });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-
       setForgotResult(data);
     } catch (err: any) {
       toast.error(err.message || "Erro ao redefinir senha");
@@ -90,12 +108,11 @@ const Login = () => {
     }
   };
 
-
   const handleBackToLogin = () => {
     setShowForgotPassword(false);
     setForgotResult(null);
     setForgotPhone("");
-    
+    setForgotEmail("");
   };
 
   if (authLoading) {
@@ -123,48 +140,73 @@ const Login = () => {
 
         <CardContent className="pt-2 pb-5 px-5">
           {showForgotPassword ? (
-            // Forgot Password Form
             <div className="space-y-4">
               {forgotResult ? (
-                // Result screen
                 <div className="space-y-4">
                   <div className="rounded-lg p-3 text-sm bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400">
                     {forgotResult.message}
                   </div>
-
-                  <Button
-                    type="button"
-                    className="w-full h-10"
-                    onClick={handleBackToLogin}
-                  >
+                  <Button type="button" className="w-full h-10" onClick={handleBackToLogin}>
                     Voltar para o Login
                   </Button>
                 </div>
               ) : (
-                // Phone input form
                 <form onSubmit={handleForgotPassword} className="space-y-3">
                   <p className="text-xs text-muted-foreground">
-                    Informe o telefone cadastrado. Uma nova senha será enviada via WhatsApp.
+                    Informe o telefone ou e-mail cadastrado. Uma nova senha será enviada.
                   </p>
 
-                  <div className="space-y-1.5">
-                    <Label className="text-sm">Telefone</Label>
-                    <PhoneInput
-                      value={forgotPhone}
-                      country={forgotCountry}
-                      onValueChange={setForgotPhone}
-                      onCountryChange={setForgotCountry}
-                      disabled={forgotLoading}
-                      showFieldLabels
-                    />
+                  {/* Forgot method toggle */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setForgotMethod("phone")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                        forgotMethod === "phone" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"
+                      }`}
+                    >
+                      <Phone className="w-3.5 h-3.5" /> Telefone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setForgotMethod("email")}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                        forgotMethod === "email" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"
+                      }`}
+                    >
+                      <Mail className="w-3.5 h-3.5" /> E-mail
+                    </button>
                   </div>
+
+                  {forgotMethod === "phone" ? (
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">Telefone</Label>
+                      <PhoneInput
+                        value={forgotPhone}
+                        country={forgotCountry}
+                        onValueChange={setForgotPhone}
+                        onCountryChange={setForgotCountry}
+                        disabled={forgotLoading}
+                        showFieldLabels
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      <Label className="text-sm">E-mail</Label>
+                      <Input
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        disabled={forgotLoading}
+                        className="h-10"
+                      />
+                    </div>
+                  )}
 
                   <Button type="submit" className="w-full h-10" disabled={forgotLoading}>
                     {forgotLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Redefinindo...
-                      </>
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Redefinindo...</>
                     ) : (
                       "Redefinir Senha"
                     )}
@@ -182,7 +224,6 @@ const Login = () => {
               )}
             </div>
           ) : (
-            // Login Form
             <>
               <form onSubmit={handleSubmit} className="space-y-3">
                 {error && (
@@ -191,20 +232,54 @@ const Login = () => {
                   </div>
                 )}
 
-                <div className="space-y-1.5">
-                  <Label htmlFor="phone" className="text-sm">Telefone</Label>
-                  <PhoneInput
-                    value={phone}
-                    country={phoneCountry}
-                    onValueChange={(val) => {
-                      setPhone(val);
-                      setError(null);
-                    }}
-                    onCountryChange={setPhoneCountry}
-                    disabled={isSubmitting}
-                    showFieldLabels
-                  />
+                {/* Login method toggle */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setLoginMethod("phone"); setError(null); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                      loginMethod === "phone" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    <Phone className="w-3.5 h-3.5" /> Telefone
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLoginMethod("email"); setError(null); }}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border-2 text-xs font-medium transition-all ${
+                      loginMethod === "email" ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    <Mail className="w-3.5 h-3.5" /> E-mail
+                  </button>
                 </div>
+
+                {loginMethod === "phone" ? (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-sm">Telefone</Label>
+                    <PhoneInput
+                      value={phone}
+                      country={phoneCountry}
+                      onValueChange={(val) => { setPhone(val); setError(null); }}
+                      onCountryChange={setPhoneCountry}
+                      disabled={isSubmitting}
+                      showFieldLabels
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="loginEmail" className="text-sm">E-mail</Label>
+                    <Input
+                      id="loginEmail"
+                      type="email"
+                      placeholder="seu@email.com"
+                      value={email}
+                      onChange={(e) => { setEmail(e.target.value); setError(null); }}
+                      disabled={isSubmitting}
+                      className="h-10"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-1.5">
                   <Label htmlFor="password" className="text-sm">Senha</Label>
@@ -214,10 +289,7 @@ const Login = () => {
                       type={showPassword ? "text" : "password"}
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        setError(null);
-                      }}
+                      onChange={(e) => { setPassword(e.target.value); setError(null); }}
                       disabled={isSubmitting}
                       className="h-10 pr-10"
                     />
@@ -234,10 +306,7 @@ const Login = () => {
 
                 <Button type="submit" className="w-full h-10 mt-4" disabled={isSubmitting}>
                   {isSubmitting ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Entrando...
-                    </>
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Entrando...</>
                   ) : (
                     "Entrar"
                   )}
@@ -255,13 +324,8 @@ const Login = () => {
               </div>
 
               <div className="mt-3 text-center space-y-1">
-                <p className="text-xs text-muted-foreground">
-                  Sua igreja ainda não está cadastrada?
-                </p>
-                <Link
-                  to="/registro"
-                  className="text-xs font-medium text-primary hover:underline"
-                >
+                <p className="text-xs text-muted-foreground">Sua igreja ainda não está cadastrada?</p>
+                <Link to="/registro" className="text-xs font-medium text-primary hover:underline">
                   Cadastre-se agora
                 </Link>
               </div>

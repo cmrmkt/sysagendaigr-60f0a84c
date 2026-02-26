@@ -148,6 +148,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // phone can be a phone number or email; phoneCountry "EMAIL" means email login
   const login = async (
     phone: string,
     phoneCountry: string,

@@ -12,13 +12,16 @@ interface RegisterOrgRequest {
   orgCity?: string;
   orgState?: string;
   orgPostalCode?: string;
+  orgPhone?: string;
+  orgPhoneCountry?: string;
   country?: string;
   phone: string;
   phoneCountry: string;
+  loginEmail?: string;
+  loginMethod?: "phone" | "email";
   password: string;
   adminName: string;
   adminPersonalId?: string;
-  adminNationalId?: string;
   adminAddress?: string;
   adminPhone?: string;
   adminPhoneCountry?: string;
@@ -28,10 +31,8 @@ interface RegisterOrgRequest {
 
 // Convert phone to internal email format
 const phoneToEmail = (phone: string, phoneCountry: string): string => {
-  // Remove all non-numeric characters
   let cleanPhone = phone.replace(/\D/g, "");
   
-  // Normalize: strip leading country code if user included it
   if (phoneCountry === "BR" && cleanPhone.length === 13 && cleanPhone.startsWith("55")) {
     cleanPhone = cleanPhone.substring(2);
   } else if ((phoneCountry === "US" || phoneCountry === "CA") && cleanPhone.length === 11 && cleanPhone.startsWith("1")) {
@@ -44,19 +45,17 @@ const phoneToEmail = (phone: string, phoneCountry: string): string => {
   return `${countryCode}${cleanPhone}@phone.agendaigr.app`;
 };
 
-// Generate slug from organization name
 const generateSlug = (name: string): string => {
   return name
     .toLowerCase()
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents
-    .replace(/[^a-z0-9]+/g, "-") // Replace non-alphanumeric with dash
-    .replace(/^-+|-+$/g, "") // Remove leading/trailing dashes
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
     .substring(0, 50);
 };
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -65,19 +64,16 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
-    // Use service role for admin operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false,
-      },
+      auth: { autoRefreshToken: false, persistSession: false },
     });
 
     const body: RegisterOrgRequest = await req.json();
     const { 
-      orgName, orgTaxId, orgAddress, orgCity, orgState, orgPostalCode, country,
-      phone, phoneCountry, password, adminName,
-      adminPersonalId, adminNationalId, adminAddress, 
+      orgName, orgTaxId, orgAddress, orgCity, orgState, orgPostalCode,
+      orgPhone, orgPhoneCountry, country,
+      phone, phoneCountry, loginEmail, loginMethod, password, adminName,
+      adminPersonalId, adminAddress, 
       adminPhone, adminPhoneCountry, adminWhatsapp, adminWhatsappCountry 
     } = body;
 
@@ -89,22 +85,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate field lengths
-    if (orgName.length > 100) {
+    if (orgName.length > 100 || adminName.length > 100) {
       return new Response(
-        JSON.stringify({ error: "Nome da organização deve ter no máximo 100 caracteres" }),
+        JSON.stringify({ error: "Nome deve ter no máximo 100 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (adminName.length > 100) {
-      return new Response(
-        JSON.stringify({ error: "Nome do administrador deve ter no máximo 100 caracteres" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate phone format (only digits, 7-15 chars)
     const cleanPhoneCheck = phone.replace(/\D/g, "");
     if (cleanPhoneCheck.length < 7 || cleanPhoneCheck.length > 15) {
       return new Response(
@@ -113,40 +100,44 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Validate country code whitelist
     const supportedCountries = ["BR", "US", "CA", "PT"];
     if (!supportedCountries.includes(phoneCountry)) {
       return new Response(
-        JSON.stringify({ error: "País não suportado. Países disponíveis: Brasil, EUA, Canadá, Portugal" }),
+        JSON.stringify({ error: "País não suportado" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 6 || password.length > 72) {
       return new Response(
-        JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }),
+        JSON.stringify({ error: "A senha deve ter entre 6 e 72 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (password.length > 72) {
-      return new Response(
-        JSON.stringify({ error: "A senha deve ter no máximo 72 caracteres" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    // Determine auth email: if loginMethod is "email", use loginEmail directly; otherwise phone-based
+    let authEmail: string;
+    if (loginMethod === "email" && loginEmail) {
+      authEmail = loginEmail.trim().toLowerCase();
+      if (!authEmail.includes("@") || authEmail.length < 5 || authEmail.length > 255) {
+        return new Response(
+          JSON.stringify({ error: "E-mail de login inválido" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } else {
+      authEmail = phoneToEmail(phone, phoneCountry);
     }
 
-    const email = phoneToEmail(phone, phoneCountry);
     const slug = generateSlug(orgName) + "-" + Date.now().toString(36);
 
-    console.log(`Registering new organization: ${orgName} with admin: ${adminName}`);
+    console.log(`Registering new organization: ${orgName} with admin: ${adminName} (auth: ${authEmail})`);
 
-    // Check if phone is already registered
+    // Check if auth email is already registered
     const { data: existingUser } = await supabaseAdmin.auth.admin.listUsers();
-    const existingAuthUser = existingUser?.users?.find(u => u.email === email);
+    const existingAuthUser = existingUser?.users?.find(u => u.email === authEmail);
     
     if (existingAuthUser) {
-      // Check if this auth user has an active profile
       const { data: existingProfile } = await supabaseAdmin
         .from("profiles")
         .select("id")
@@ -154,17 +145,15 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (existingProfile) {
-        // Auth user exists with an active profile - cannot reuse phone
+        const identLabel = loginMethod === "email" ? "e-mail" : "telefone";
         return new Response(
-          JSON.stringify({ error: "Este telefone já está vinculado a outra conta no sistema. Cada telefone só pode ser usado em uma única organização." }),
+          JSON.stringify({ error: `Este ${identLabel} já está vinculado a outra conta no sistema.` }),
           { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } else {
-        // Auth user exists but no profile (deleted user) - clean up and allow registration
-        console.log(`Found orphaned auth user for ${email}, deleting...`);
+        console.log(`Found orphaned auth user for ${authEmail}, deleting...`);
         try {
           await supabaseAdmin.auth.admin.deleteUser(existingAuthUser.id);
-          console.log(`Orphaned auth user deleted: ${existingAuthUser.id}`);
         } catch (deleteError) {
           console.error("Error deleting orphaned auth user:", deleteError);
           return new Response(
@@ -175,11 +164,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Calculate trial end date (7 days from now)
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + 7);
 
-    // 1. Create organization - Active immediately with 7-day trial
+    // 1. Create organization
     const { data: org, error: orgError } = await supabaseAdmin
       .from("organizations")
       .insert({
@@ -194,6 +182,7 @@ Deno.serve(async (req) => {
         city: orgCity || null,
         state: orgState || null,
         postal_code: orgPostalCode || null,
+        phone: orgPhone || null,
       })
       .select()
       .single();
@@ -201,7 +190,7 @@ Deno.serve(async (req) => {
     if (orgError) {
       console.error("Error creating organization:", orgError);
       return new Response(
-        JSON.stringify({ error: `Erro ao criar organização: ${orgError.message || orgError.code || "erro interno do banco de dados"}` }),
+        JSON.stringify({ error: `Erro ao criar organização: ${orgError.message || "erro interno"}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -210,9 +199,9 @@ Deno.serve(async (req) => {
 
     // 2. Create auth user
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
+      email: authEmail,
       password,
-      email_confirm: true, // Auto confirm since we use phone
+      email_confirm: true,
       user_metadata: {
         name: adminName,
         phone,
@@ -223,7 +212,6 @@ Deno.serve(async (req) => {
 
     if (authError) {
       console.error("Error creating auth user:", authError);
-      // Rollback: delete organization
       await supabaseAdmin.from("organizations").delete().eq("id", org.id);
       return new Response(
         JSON.stringify({ error: `Erro ao criar usuário: ${authError.message || "erro de autenticação"}` }),
@@ -233,30 +221,29 @@ Deno.serve(async (req) => {
 
     console.log(`Auth user created: ${authUser.user.id}`);
 
-    // 3. Create profile
+    // 3. Create profile (store loginEmail in email field if provided)
     const { error: profileError } = await supabaseAdmin
       .from("profiles")
       .insert({
         id: authUser.user.id,
         organization_id: org.id,
         name: adminName,
-        phone,
-        phone_country: phoneCountry,
+        phone: adminPhone || phone,
+        phone_country: adminPhoneCountry || phoneCountry,
         can_create_events: true,
         personal_id: adminPersonalId || null,
-        national_id: adminNationalId || null,
         whatsapp: adminWhatsapp || null,
         whatsapp_country: adminWhatsappCountry || null,
         address: adminAddress || null,
+        email: loginMethod === "email" ? loginEmail?.trim().toLowerCase() : null,
       });
 
     if (profileError) {
       console.error("Error creating profile:", profileError);
-      // Rollback
       await supabaseAdmin.auth.admin.deleteUser(authUser.user.id);
       await supabaseAdmin.from("organizations").delete().eq("id", org.id);
       return new Response(
-        JSON.stringify({ error: `Erro ao criar perfil do administrador: ${profileError.message || profileError.code || "erro interno"}` }),
+        JSON.stringify({ error: `Erro ao criar perfil: ${profileError.message || "erro interno"}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -264,16 +251,11 @@ Deno.serve(async (req) => {
     // 4. Assign admin role
     const { error: roleError } = await supabaseAdmin
       .from("user_roles")
-      .insert({
-        user_id: authUser.user.id,
-        role: "admin",
-      });
+      .insert({ user_id: authUser.user.id, role: "admin" });
 
-    if (roleError) {
-      console.error("Error assigning role:", roleError);
-    }
+    if (roleError) console.error("Error assigning role:", roleError);
 
-    // 5. Notify Super Admin about new organization registration
+    // 5. Notify Super Admin
     console.log(`Notifying Super Admin about new organization: ${org.name}`);
 
     const { data: superAdminRole } = await supabaseAdmin
@@ -283,37 +265,29 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (superAdminRole?.user_id) {
-      // Send push notification
       try {
         await supabaseAdmin.functions.invoke("send-push", {
           body: {
             recipient_ids: [superAdminRole.user_id],
             title: "Nova Organização Registrada",
-            body: `${orgName} (${phoneCountry}) iniciou o período de teste de 7 dias.`,
+            body: `${orgName} (${country || phoneCountry}) iniciou o período de teste de 7 dias.`,
             icon: "/pwa-icon-192.png",
             badge: "/favicon.png",
             tag: "new-org-registration",
-            data: {
-              type: "new_organization",
-              organization_id: org.id,
-              organization_name: orgName,
-              phone_country: phoneCountry,
-            },
+            data: { type: "new_organization", organization_id: org.id, organization_name: orgName },
           },
         });
-        console.log(`Push notification sent to Super Admin for organization: ${org.name}`);
       } catch (pushError) {
-        console.error(`Failed to send push notification to Super Admin:`, pushError);
+        console.error("Failed to send push:", pushError);
       }
 
-      // Send WhatsApp notification to Super Admin
+      // WhatsApp notification to Super Admin
       try {
         const globalEvolutionUrl = Deno.env.get("GLOBAL_EVOLUTION_API_URL");
         const globalEvolutionKey = Deno.env.get("GLOBAL_EVOLUTION_API_KEY");
         const globalInstanceName = Deno.env.get("GLOBAL_EVOLUTION_INSTANCE_NAME");
 
         if (globalEvolutionUrl && globalEvolutionKey && globalInstanceName) {
-          // Get Super Admin's phone from profile
           const { data: superAdminProfile } = await supabaseAdmin
             .from("profiles")
             .select("phone, phone_country")
@@ -334,45 +308,25 @@ Deno.serve(async (req) => {
 
             const message = `🔔 *Nova Organização Cadastrada!*\n\n🏢 *${orgName}*\n🌍 País: ${countryName}\n⏰ Data: ${now}\n\n✅ Período de teste de 7 dias iniciado.`;
 
-            const whatsappResponse = await fetch(
+            await fetch(
               `${globalEvolutionUrl}/message/sendText/${globalInstanceName}`,
               {
                 method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  apikey: globalEvolutionKey,
-                },
-                body: JSON.stringify({
-                  number: fullPhone,
-                  text: message,
-                }),
+                headers: { "Content-Type": "application/json", apikey: globalEvolutionKey },
+                body: JSON.stringify({ number: fullPhone, text: message }),
               }
             );
-
-            if (whatsappResponse.ok) {
-              console.log(`WhatsApp notification sent to Super Admin for: ${orgName}`);
-            } else {
-              const errText = await whatsappResponse.text();
-              console.error(`WhatsApp send failed (${whatsappResponse.status}):`, errText);
-            }
           }
-        } else {
-          console.log("Global Evolution API credentials not fully configured, skipping WhatsApp.");
         }
       } catch (whatsappError) {
         console.error("Failed to send WhatsApp to Super Admin:", whatsappError);
-        // Don't fail the registration
       }
     }
 
     console.log(`Registration complete for organization: ${org.name}`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        message: "Cadastro realizado com sucesso! Seu acesso está liberado.",
-        organizationId: org.id,
-      }),
+      JSON.stringify({ success: true, message: "Cadastro realizado com sucesso!", organizationId: org.id }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
