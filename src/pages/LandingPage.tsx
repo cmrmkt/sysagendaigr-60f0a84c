@@ -72,7 +72,7 @@ const LandingPage = () => {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
-              <Button variant="outline" size="sm" asChild>
+              <Button size="sm" asChild className="shadow-md font-semibold px-5">
                 <Link to="/login">Entrar</Link>
               </Button>
             </div>
