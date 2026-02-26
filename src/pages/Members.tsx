@@ -171,6 +171,15 @@ const Members = () => {
       return;
     }
 
+    if (!formEmail.trim()) {
+      toast({
+        title: "E-mail obrigatório",
+        description: "Informe o e-mail do membro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -199,7 +208,7 @@ const Members = () => {
           role: formRole,
           canCreateEvents: formCanCreate,
           ministryAssociations,
-          email: formEmail || undefined,
+          email: formEmail,
         });
 
         // Show success modal with credentials
@@ -447,7 +456,7 @@ const Members = () => {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="email">E-mail (opcional)</Label>
+                <Label htmlFor="email">E-mail *</Label>
                 <Input
                   id="email"
                   type="email"
