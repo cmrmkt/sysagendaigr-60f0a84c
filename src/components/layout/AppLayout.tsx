@@ -4,6 +4,7 @@ import AppSidebar from "./AppSidebar";
 import ScrollToTopButton from "./ScrollToTopButton";
 import SubscriptionBanner from "./SubscriptionBanner";
 import InvoiceBanner from "./InvoiceBanner";
+import InstallBanner from "@/components/pwa/InstallBanner";
 
 const AppLayout = () => {
   const mainRef = useRef<HTMLElement>(null);
@@ -28,6 +29,7 @@ const AppLayout = () => {
           {/* Scroll button inside main for better iframe compatibility */}
           <ScrollToTopButton scrollRef={mainRef} />
         </main>
+        <InstallBanner />
       </div>
     </div>
   );
