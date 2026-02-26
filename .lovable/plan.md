@@ -1,65 +1,63 @@
 
 
-## Melhorias no Cadastro, Login e Recuperacao de Senha
+## Correcao do Envio de Senha e Email Obrigatorio no Cadastro de Membros
 
-### 1. Busca automatica de endereco pelo CEP (Register.tsx)
+### Problemas Identificados
 
-Quando o pais selecionado for **Brasil** e o usuario digitar um CEP valido (8 digitos), o sistema consultara a API publica `viacep.com.br/ws/{cep}/json/` para preencher automaticamente os campos **Endereco**, **Cidade** e **Estado**. Para outros paises, o comportamento permanece manual.
+1. **WhatsApp nao envia**: Na Edge Function `forgot-password`, o nome da instancia global esta **hardcoded** como `"agendaigr-global"` em vez de usar o secret `GLOBAL_EVOLUTION_INSTANCE_NAME`. Se o nome real for diferente, a mensagem nunca e enviada.
+2. **Email nao e enviado**: O codigo de envio por email e apenas um comentario TODO -- nao ha implementacao real.
+3. **Email e opcional no cadastro de membros**: O campo email esta marcado como "(opcional)" na tela Members.tsx, permitindo cadastrar membros sem email.
 
-### 2. Reorganizacao visual do formulario de registro (Register.tsx)
+---
 
-O formulario sera dividido em 3 secoes visuais com separadores claros:
+### Plano de Correcao
 
-- **Dados da Igreja**: Nome da Igreja*, Telefone da Igreja (novo campo), CNPJ, CEP, Endereco, Cidade, Estado
-- **Dados do Administrador do Sistema**: Nome Completo*, CPF*, Endereco*, Telefone*, WhatsApp* (campo RG sera removido)
-- **Credenciais de Acesso ao Sistema**: opcao de login por telefone OU email, senha e confirmacao
+#### 1. Corrigir envio WhatsApp na Edge Function `forgot-password`
 
-### 3. Campos obrigatorios atualizados
+- Substituir o nome hardcoded `"agendaigr-global"` pelo secret `GLOBAL_EVOLUTION_INSTANCE_NAME` (igual ao padrao usado em `auth-register-org`)
+- Adicionar logs de debug para capturar a resposta da Evolution API quando falhar
 
-- **Dados da Igreja**: todos obrigatorios EXCETO CNPJ (Nome*, Telefone*, CEP*, Endereco*, Cidade*, Estado*)
-- **Dados do Administrador**: todos obrigatorios (Nome*, CPF*, Endereco*, Telefone*, WhatsApp*) -- campo RG/National ID removido
-- **Credenciais**: telefone ou email obrigatorio, senha obrigatoria
+#### 2. Implementar envio de email na Edge Function `forgot-password`
 
-### 4. Login por telefone OU email (Register.tsx + Login.tsx + Edge Functions)
+- Usar a Evolution API para enviar a nova senha tambem por email, caso o perfil tenha email cadastrado
+- Como o sistema nao tem servico de email transacional configurado, a abordagem sera usar `supabase.auth.admin.generateLink()` para gerar um magic link OU simplesmente enviar a senha via WhatsApp com a informacao de que o email tambem foi atualizado
+- **Alternativa viavel**: Usar a funcao `supabase.auth.resetPasswordForEmail()` do Supabase para disparar o email nativo de reset para o email cadastrado do usuario (se houver email real, nao o `@phone.agendaigr.app`)
+- Se o usuario tiver email cadastrado no perfil, chamar `resetPasswordForEmail` alem do WhatsApp
+- Atualizar a mensagem de retorno para indicar os canais utilizados
 
-- No registro, o usuario escolhe se quer fazer login com **telefone** ou **email**
-- Na tela de login, adicionar campo de email como alternativa ao telefone
-- A Edge Function `auth-register-org` sera atualizada para aceitar `loginEmail` como campo opcional e armazena-lo no perfil
-- A Edge Function `auth-phone-login` sera atualizada para aceitar login por email direto (quando o email nao segue o padrao `@phone.agendaigr.app`)
-- O `AuthContext.login()` sera atualizado para suportar ambos os metodos
+#### 3. Tornar email obrigatorio no cadastro de membros (`Members.tsx`)
 
-### 5. Recuperacao de senha via WhatsApp E email (Login.tsx + forgot-password Edge Function)
+- Mudar o label de "E-mail (opcional)" para "E-mail *"
+- Adicionar validacao no `handleSave` para exigir email antes de salvar
+- Manter o campo editavel tanto na criacao quanto na edicao
 
-- A tela "Esqueci minha senha" permitira informar telefone OU email
-- A Edge Function `forgot-password` sera atualizada para:
-  - Aceitar `email` como parametro alternativo ao `phone`
-  - Se o usuario tiver email cadastrado no perfil, enviar a nova senha tambem por email via Supabase Auth `resetPasswordForEmail` ou mensagem simples
-  - Manter o envio via WhatsApp como canal principal
-  - A mensagem de retorno indicara ambos os canais utilizados
+#### 4. Atualizar Edge Function `admin-create-user`
 
-### 6. Campo de telefone na organizacao
-
-- Adicionar campo `phone` da igreja no formulario (ja existe na tabela `organizations`)
-- A Edge Function `auth-register-org` passara a salvar o telefone da igreja
+- Tornar o campo `email` obrigatorio na validacao (retornar erro se nao informado)
 
 ---
 
 ### Detalhes Tecnicos
 
 **Arquivos a modificar:**
-- `src/pages/Register.tsx` -- reorganizacao, CEP auto-fill, campo telefone igreja, login por email, remover RG, campos obrigatorios
-- `src/pages/Login.tsx` -- suporte a login por email, recuperacao por email
-- `src/contexts/AuthContext.tsx` -- metodo login aceitar email
-- `supabase/functions/auth-register-org/index.ts` -- aceitar loginEmail e orgPhone
-- `supabase/functions/auth-phone-login/index.ts` -- aceitar login por email direto
-- `supabase/functions/forgot-password/index.ts` -- aceitar email, enviar por email
 
-**API ViaCEP:**
-- URL: `https://viacep.com.br/ws/{cep}/json/`
-- Chamada feita no frontend apos o usuario digitar 8 digitos no campo CEP (Brasil apenas)
-- Resposta preenche: `logradouro` -> Endereco, `localidade` -> Cidade, `uf` -> Estado
+| Arquivo | Alteracao |
+|---------|-----------|
+| `supabase/functions/forgot-password/index.ts` | Usar `GLOBAL_EVOLUTION_INSTANCE_NAME`, implementar envio por email via Supabase Auth |
+| `src/pages/Members.tsx` | Email obrigatorio (label + validacao) |
+| `supabase/functions/admin-create-user/index.ts` | Validar email como obrigatorio |
 
-**Tabela profiles:**
-- Ja possui campo `email` -- sera usado para armazenar o email de login alternativo
-- Campo `national_id` deixara de ser coletado no registro (pode manter na tabela para uso futuro)
+**Logica de envio de email no `forgot-password`:**
+
+```text
+1. Gerar nova senha temporaria (ja existente)
+2. Enviar via WhatsApp (corrigido com instance name do secret)
+3. Se profile.email existir:
+   - Atualizar a senha do usuario (ja existente)
+   - Chamar resetPasswordForEmail(profile.email) para disparar email nativo do Supabase
+   - OU simplesmente confiar que o WhatsApp e suficiente e informar ao usuario
+4. Retornar mensagem indicando canais utilizados
+```
+
+**Abordagem de email escolhida**: Como o projeto nao tem servico de email transacional (Resend/SendGrid), usaremos `supabase.auth.admin.updateUserById` para definir a nova senha e incluiremos na mensagem de retorno que a senha foi resetada. O canal principal de notificacao continua sendo o WhatsApp. Para o email, faremos uma tentativa via `resetPasswordForEmail` que usara o email nativo do Supabase (se configurado).
 
