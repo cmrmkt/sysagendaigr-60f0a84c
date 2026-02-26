@@ -1,11 +1,24 @@
 // Service Worker for Agendaigr PWA
 // Handles push notifications and basic caching
 
-const CACHE_NAME = 'agendaigr-v1';
+const CACHE_NAME = 'agendaigr-v2';
+
+const PRECACHE_ASSETS = [
+  '/',
+  '/manifest.json',
+  '/pwa-icon-192.png',
+  '/pwa-icon-512.png',
+  '/favicon.png',
+];
 
 // Install event - cache essential assets
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_ASSETS);
+    })
+  );
   self.skipWaiting();
 });
 
