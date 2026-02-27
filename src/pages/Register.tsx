@@ -169,8 +169,6 @@ const Register = () => {
 
   // Administrator data
   const [adminName, setAdminName] = useState("");
-  const [adminPersonalId, setAdminPersonalId] = useState("");
-  const [adminAddress, setAdminAddress] = useState("");
   const [adminPhone, setAdminPhone] = useState("");
   const [adminPhoneCountry, setAdminPhoneCountry] = useState<CountryCode>("BR");
   const [adminWhatsapp, setAdminWhatsapp] = useState("");
@@ -220,7 +218,6 @@ const Register = () => {
     setOrgTaxId("");
     setOrgPostalCode("");
     setOrgState("");
-    setAdminPersonalId("");
     setAdminPhoneCountry(country);
     setAdminWhatsappCountry(country);
     setLoginPhoneCountry(country);
@@ -261,14 +258,6 @@ const Register = () => {
     // Admin validations
     if (!adminName.trim() || adminName.length < 2) {
       setError("Informe o nome completo do administrador.");
-      return;
-    }
-    if (!adminPersonalId || adminPersonalId.replace(/\D/g, "").length < 5) {
-      setError(`Informe o ${labels.personalId} do administrador.`);
-      return;
-    }
-    if (!adminAddress.trim()) {
-      setError("Informe o endereço do administrador.");
       return;
     }
     if (!adminPhone || adminPhone.replace(/\D/g, "").length < 8) {
@@ -322,8 +311,6 @@ const Register = () => {
           loginMethod,
           password,
           adminName: adminName.trim(),
-          adminPersonalId: adminPersonalId.replace(/\D/g, ""),
-          adminAddress: adminAddress.trim(),
           adminPhone: adminPhone,
           adminPhoneCountry: adminPhoneCountry,
           adminWhatsapp: adminWhatsapp,
@@ -579,36 +566,6 @@ const Register = () => {
                       placeholder="Nome completo"
                       value={adminName}
                       onChange={(e) => { setAdminName(e.target.value); setError(null); }}
-                      disabled={isSubmitting}
-                      className="h-11 bg-muted/50 shadow-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="adminPersonalId">{labels.personalId} *</Label>
-                    <Input
-                      id="adminPersonalId"
-                      type="text"
-                      placeholder={labels.personalIdPlaceholder}
-                      value={adminPersonalId}
-                      onChange={(e) => setAdminPersonalId(labels.formatPersonalId(e.target.value))}
-                      disabled={isSubmitting}
-                      className="h-11 bg-muted/50 shadow-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    {/* Empty cell for alignment */}
-                  </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="adminAddress">Endereço *</Label>
-                    <Input
-                      id="adminAddress"
-                      type="text"
-                      placeholder="Endereço completo"
-                      value={adminAddress}
-                      onChange={(e) => setAdminAddress(e.target.value)}
                       disabled={isSubmitting}
                       className="h-11 bg-muted/50 shadow-sm"
                     />
