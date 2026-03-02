@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { format } from "date-fns";
+import { format, addDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   ArrowLeft,
   Building2,
   Users,
-  Calendar,
+  Calendar as CalendarIcon,
   FileText,
   Activity,
   Eye,
@@ -16,8 +16,13 @@ import {
   Globe,
   CreditCard,
   KeyRound,
+  CalendarClock,
 } from "lucide-react";
 import { useOrganization, useUpdateOrganization, useSuspendOrganization } from "@/hooks/useOrganizations";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import { useInvoices, useCreateInvoice, useMarkInvoicePaid } from "@/hooks/useInvoices";
 import { useUsageLogs } from "@/hooks/useUsageLogs";
 import { useAuth } from "@/contexts/AuthContext";
@@ -60,6 +65,27 @@ const OrganizationDetails = () => {
   const createInvoice = useCreateInvoice();
   const markPaid = useMarkInvoicePaid();
   const suspendOrganization = useSuspendOrganization();
+  const updateOrganization = useUpdateOrganization();
+
+  // Extend trial state
+  const [extendTrialDate, setExtendTrialDate] = useState<Date | undefined>(undefined);
+  const [showExtendTrial, setShowExtendTrial] = useState(false);
+
+  const handleExtendTrial = async () => {
+    if (!extendTrialDate || !organization) return;
+    try {
+      await updateOrganization.mutateAsync({
+        id: organization.id,
+        trial_ends_at: extendTrialDate.toISOString(),
+        subscription_status: "trial",
+      });
+      toast.success(`Trial estendido até ${format(extendTrialDate, "dd/MM/yyyy")}`);
+      setShowExtendTrial(false);
+      setExtendTrialDate(undefined);
+    } catch {
+      toast.error("Erro ao estender trial");
+    }
+  };
 
   // Fetch users of this organization
   const { data: users } = useQuery({
@@ -290,6 +316,57 @@ const OrganizationDetails = () => {
                 <CardTitle>Ações</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                {/* Estender Trial */}
+                <Popover open={showExtendTrial} onOpenChange={setShowExtendTrial}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start gap-2">
+                      <CalendarClock className="w-4 h-4" />
+                      {extendTrialDate
+                        ? `Estender até ${format(extendTrialDate, "dd/MM/yyyy")}`
+                        : "Estender Período de Teste"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-3 border-b">
+                      <p className="text-sm font-medium">Selecione a nova data limite do trial</p>
+                      {organization.trial_ends_at && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Atual: {format(new Date(organization.trial_ends_at), "dd/MM/yyyy")}
+                        </p>
+                      )}
+                    </div>
+                    <Calendar
+                      mode="single"
+                      selected={extendTrialDate}
+                      onSelect={setExtendTrialDate}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                    <div className="p-3 border-t flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1"
+                        onClick={() => {
+                          setShowExtendTrial(false);
+                          setExtendTrialDate(undefined);
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={!extendTrialDate || updateOrganization.isPending}
+                        onClick={handleExtendTrial}
+                      >
+                        Confirmar
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+
                 {organization.status === "active" && (
                   <Button
                     variant="destructive"
