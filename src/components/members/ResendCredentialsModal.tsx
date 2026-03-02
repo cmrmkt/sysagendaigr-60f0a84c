@@ -75,7 +75,7 @@ export function ResendCredentialsModal({
 
 🔑 Senha: ${newPassword}
 
-🔗 Acesse: https://agendaigr.lovable.app/login
+🔗 Acesse: https://agendaigr.cmrsys.com.br/login
 
 📲 *Para receber lembretes no celular:*
 1. Acesse o link acima no navegador do celular

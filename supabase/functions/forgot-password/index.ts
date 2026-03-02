@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
         `Sua senha foi redefinida com sucesso.\n\n` +
         `📱 *Login:* ${profile.phone}\n` +
         `🔑 *Nova Senha:* ${newPassword}\n\n` +
-        `Acesse: https://agendaigr.lovable.app/login\n\n` +
+        `Acesse: https://agendaigr.cmrsys.com.br/login\n\n` +
         `⚠️ Recomendamos alterar sua senha após o login.`;
 
       if (org?.whatsapp_connected && org.evolution_api_url && org.evolution_api_key && org.evolution_instance_name) {

@@ -161,7 +161,7 @@ const OrganizationFormModal = ({
     const cleanPhone = adminUser.phone.replace(/\D/g, "");
     const countryDialCode = organization?.country_code === "BR" ? "55" : organization?.country_code === "PT" ? "351" : "1";
     const message = encodeURIComponent(
-      `Olá! Seguem suas credenciais de acesso ao AgendaIGR:\n\n${getCredentialsMessage()}\n\nAcesse: https://agendaigr.lovable.app`
+      `Olá! Seguem suas credenciais de acesso ao AgendaIGR:\n\n${getCredentialsMessage()}\n\nAcesse: https://agendaigr.cmrsys.com.br`
     );
     window.open(`https://wa.me/${countryDialCode}${cleanPhone}?text=${message}`, "_blank");
   };
