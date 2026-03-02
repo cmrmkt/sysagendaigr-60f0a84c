@@ -290,7 +290,7 @@ Deno.serve(async (req) => {
 
 📱 Login: ${displayPhone}
 🔑 Senha: ${tempPassword}
-🔗 Acesse: https://agendaigr.lovable.app
+🔗 Acesse: https://agendaigr.cmrsys.com.br
 
 📲 *Para receber lembretes no celular:*
 1. Acesse o link acima no navegador do celular
