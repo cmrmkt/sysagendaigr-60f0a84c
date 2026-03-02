@@ -65,6 +65,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import OrganizationFormModal from "@/components/super-admin/OrganizationFormModal";
+import ExpiredTrialsWidget from "@/components/super-admin/ExpiredTrialsWidget";
 
 // Generate alert sound using Web Audio API
 const playAlertSound = () => {
@@ -277,6 +278,9 @@ const Organizations = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Expired Trials Widget */}
+      <ExpiredTrialsWidget organizations={organizations} />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
