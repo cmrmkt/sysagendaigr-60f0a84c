@@ -18,6 +18,8 @@ import {
   Trash2,
   Clock,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { 
   useOrganizations, 
   useApproveOrganization, 
@@ -54,6 +56,11 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrganizationStatusBadge, SubscriptionStatusBadge } from "@/components/super-admin/StatusBadges";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -110,6 +117,7 @@ const Organizations = () => {
   const createOrganization = useCreateOrganization();
   const updateOrganization = useUpdateOrganization();
   const deleteOrganization = useDeleteOrganization();
+  const queryClient = useQueryClient();
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -221,6 +229,41 @@ const Organizations = () => {
       await createOrganization.mutateAsync(data);
     }
     setFormModal({ open: false, organization: null });
+  };
+
+  const handleChangeStatus = async (orgId: string, newStatus: string) => {
+    try {
+      const updateData: any = { status: newStatus };
+      if (newStatus === "suspended") {
+        updateData.suspended_at = new Date().toISOString();
+      } else if (newStatus === "active") {
+        updateData.suspended_at = null;
+        updateData.suspended_reason = null;
+      }
+      const { error } = await supabase
+        .from("organizations")
+        .update(updateData)
+        .eq("id", orgId);
+      if (error) throw error;
+      toast.success("Status atualizado com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    } catch {
+      toast.error("Erro ao atualizar status");
+    }
+  };
+
+  const handleChangeSubscription = async (orgId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ subscription_status: newStatus })
+        .eq("id", orgId);
+      if (error) throw error;
+      toast.success("Assinatura atualizada com sucesso");
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    } catch {
+      toast.error("Erro ao atualizar assinatura");
+    }
   };
 
   return (
@@ -358,13 +401,55 @@ const Organizations = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <OrganizationStatusBadge status={org.status} />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="cursor-pointer hover:opacity-80 transition-opacity">
+                            <OrganizationStatusBadge status={org.status} />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-40 p-2" align="start">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Alterar status</p>
+                            {["active", "pending", "suspended"].map((s) => (
+                              <button
+                                key={s}
+                                disabled={s === org.status}
+                                onClick={() => handleChangeStatus(org.id, s)}
+                                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <OrganizationStatusBadge status={s} />
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </TableCell>
                     <TableCell>
-                      <SubscriptionStatusBadge 
-                        status={org.subscription_status} 
-                        trialEndsAt={org.trial_ends_at}
-                      />
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <button className="cursor-pointer hover:opacity-80 transition-opacity">
+                            <SubscriptionStatusBadge 
+                              status={org.subscription_status} 
+                              trialEndsAt={org.trial_ends_at}
+                            />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-44 p-2" align="start">
+                          <div className="space-y-1">
+                            <p className="text-xs font-medium text-muted-foreground mb-2">Alterar assinatura</p>
+                            {["active", "trial", "inactive", "cancelled"].map((s) => (
+                              <button
+                                key={s}
+                                disabled={s === org.subscription_status}
+                                onClick={() => handleChangeSubscription(org.id, s)}
+                                className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <SubscriptionStatusBadge status={s} />
+                              </button>
+                            ))}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </TableCell>
                     <TableCell className="text-center">
                       <div className="flex items-center justify-center gap-1">

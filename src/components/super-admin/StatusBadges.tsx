@@ -109,6 +109,12 @@ export const SubscriptionStatusBadge = ({ status, trialEndsAt, className }: Subs
           variant: "destructive" as const,
           className: "",
         };
+      case "inactive":
+        return {
+          label: "Inativo",
+          variant: "outline" as const,
+          className: "text-muted-foreground",
+        };
       case "cancelled":
         return {
           label: "Cancelado",
