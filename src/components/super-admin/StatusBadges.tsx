@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { differenceInDays, isPast } from "date-fns";
+import { differenceInDays } from "date-fns";
 
 interface OrganizationStatusBadgeProps {
   status: string;
@@ -66,8 +66,12 @@ export const SubscriptionStatusBadge = ({ status, trialEndsAt, className }: Subs
     
     if (status === "trial" && trialEndsAt) {
       const trialEnd = new Date(trialEndsAt);
-      trialDaysLeft = differenceInDays(trialEnd, new Date());
-      trialExpired = isPast(trialEnd);
+      const now = new Date();
+      // Use start of day for accurate day comparison
+      const trialEndDay = new Date(trialEnd.getFullYear(), trialEnd.getMonth(), trialEnd.getDate());
+      const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      trialDaysLeft = differenceInDays(trialEndDay, todayDay);
+      trialExpired = trialDaysLeft < 0;
     }
 
     switch (status) {
@@ -85,10 +89,15 @@ export const SubscriptionStatusBadge = ({ status, trialEndsAt, className }: Subs
             className: "",
           };
         }
+        if (trialDaysLeft === 0) {
+          return {
+            label: "Trial (último dia)",
+            variant: "secondary" as const,
+            className: "bg-orange-500 hover:bg-orange-600 text-white",
+          };
+        }
         return {
-          label: trialDaysLeft <= 3 
-            ? `Trial (${trialDaysLeft}d)` 
-            : `Trial (${trialDaysLeft}d)`,
+          label: `Trial (${trialDaysLeft}d)`,
           variant: "secondary" as const,
           className: trialDaysLeft <= 3 
             ? "bg-orange-500 hover:bg-orange-600 text-white" 
