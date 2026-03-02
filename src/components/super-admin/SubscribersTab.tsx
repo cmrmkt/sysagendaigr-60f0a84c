@@ -80,12 +80,21 @@ const SubscribersTab = ({ onCreateInvoice, isCreatingInvoice }: SubscribersTabPr
 
   const getSubscriberBadge = (sub: typeof subscribers[0]) => {
     if (sub.subscription_status === "trial" && sub.trial_ends_at) {
-      const daysLeft = differenceInDays(parseISO(sub.trial_ends_at), new Date());
-      if (daysLeft > 0) {
+      const trialEnd = parseISO(sub.trial_ends_at);
+      const now = new Date();
+      const trialEndDay = new Date(trialEnd.getFullYear(), trialEnd.getMonth(), trialEnd.getDate());
+      const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const daysLeft = differenceInDays(trialEndDay, todayDay);
+      if (daysLeft >= 0) {
         return (
-          <Badge variant="secondary" className="text-xs bg-blue-500/20 text-blue-600 border-blue-500/30">
+          <Badge variant="secondary" className={cn(
+            "text-xs",
+            daysLeft <= 3 
+              ? "bg-orange-500/20 text-orange-600 border-orange-500/30" 
+              : "bg-blue-500/20 text-blue-600 border-blue-500/30"
+          )}>
             <Clock className="w-3 h-3 mr-1" />
-            Trial ({daysLeft}d)
+            {daysLeft === 0 ? "Trial (último dia)" : `Trial (${daysLeft}d)`}
           </Badge>
         );
       }
