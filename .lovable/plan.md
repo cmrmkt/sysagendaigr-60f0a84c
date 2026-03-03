@@ -1,63 +1,69 @@
 
+# Reestruturar Colunas da Tabela de Organizações
 
-## Correcao do Envio de Senha e Email Obrigatorio no Cadastro de Membros
+## Problema Atual
+As colunas "Status" e "Assinatura" estão com informações misturadas. A coluna "Assinatura" mostra status de pagamento (Ativo, Trial, Inativo) em vez do tipo de plano, e a coluna "Status" mostra apenas o estado da conta sem contexto de pagamento.
 
-### Problemas Identificados
+## Nova Estrutura Proposta
 
-1. **WhatsApp nao envia**: Na Edge Function `forgot-password`, o nome da instancia global esta **hardcoded** como `"agendaigr-global"` em vez de usar o secret `GLOBAL_EVOLUTION_INSTANCE_NAME`. Se o nome real for diferente, a mensagem nunca e enviada.
-2. **Email nao e enviado**: O codigo de envio por email e apenas um comentario TODO -- nao ha implementacao real.
-3. **Email e opcional no cadastro de membros**: O campo email esta marcado como "(opcional)" na tela Members.tsx, permitindo cadastrar membros sem email.
+### Coluna "Assinatura" (Tipo de Plano)
+Mostra o **tipo** do plano contratado:
+- **Teste (Xd)** - Período de teste com dias restantes (azul). Ex: "Teste (7d)", "Teste (3d)"
+- **Teste (último dia)** - Último dia de teste (laranja)
+- **Teste expirado** - Trial vencido (vermelho)
+- **Mensal** - Assinatura mensal (verde)
+- **Anual** - Assinatura anual (verde escuro)
 
----
+Ao clicar, abre popover para alterar entre: Teste, Mensal, Anual.
 
-### Plano de Correcao
+### Coluna "Status" (Situação da Conta)
+Mostra o **estado** da organização (sem alteração de lógica):
+- **Ativo** (verde)
+- **Pendente** (amarelo)
+- **Suspenso** (vermelho)
+- **Cancelado** (cinza)
 
-#### 1. Corrigir envio WhatsApp na Edge Function `forgot-password`
+Ao clicar, abre popover para alterar (já implementado).
 
-- Substituir o nome hardcoded `"agendaigr-global"` pelo secret `GLOBAL_EVOLUTION_INSTANCE_NAME` (igual ao padrao usado em `auth-register-org`)
-- Adicionar logs de debug para capturar a resposta da Evolution API quando falhar
+## Detalhes Técnicos
 
-#### 2. Implementar envio de email na Edge Function `forgot-password`
+### 1. Migração de Banco de Dados
+Adicionar coluna `subscription_type` na tabela `organizations`:
 
-- Usar a Evolution API para enviar a nova senha tambem por email, caso o perfil tenha email cadastrado
-- Como o sistema nao tem servico de email transacional configurado, a abordagem sera usar `supabase.auth.admin.generateLink()` para gerar um magic link OU simplesmente enviar a senha via WhatsApp com a informacao de que o email tambem foi atualizado
-- **Alternativa viavel**: Usar a funcao `supabase.auth.resetPasswordForEmail()` do Supabase para disparar o email nativo de reset para o email cadastrado do usuario (se houver email real, nao o `@phone.agendaigr.app`)
-- Se o usuario tiver email cadastrado no perfil, chamar `resetPasswordForEmail` alem do WhatsApp
-- Atualizar a mensagem de retorno para indicar os canais utilizados
-
-#### 3. Tornar email obrigatorio no cadastro de membros (`Members.tsx`)
-
-- Mudar o label de "E-mail (opcional)" para "E-mail *"
-- Adicionar validacao no `handleSave` para exigir email antes de salvar
-- Manter o campo editavel tanto na criacao quanto na edicao
-
-#### 4. Atualizar Edge Function `admin-create-user`
-
-- Tornar o campo `email` obrigatorio na validacao (retornar erro se nao informado)
-
----
-
-### Detalhes Tecnicos
-
-**Arquivos a modificar:**
-
-| Arquivo | Alteracao |
-|---------|-----------|
-| `supabase/functions/forgot-password/index.ts` | Usar `GLOBAL_EVOLUTION_INSTANCE_NAME`, implementar envio por email via Supabase Auth |
-| `src/pages/Members.tsx` | Email obrigatorio (label + validacao) |
-| `supabase/functions/admin-create-user/index.ts` | Validar email como obrigatorio |
-
-**Logica de envio de email no `forgot-password`:**
-
-```text
-1. Gerar nova senha temporaria (ja existente)
-2. Enviar via WhatsApp (corrigido com instance name do secret)
-3. Se profile.email existir:
-   - Atualizar a senha do usuario (ja existente)
-   - Chamar resetPasswordForEmail(profile.email) para disparar email nativo do Supabase
-   - OU simplesmente confiar que o WhatsApp e suficiente e informar ao usuario
-4. Retornar mensagem indicando canais utilizados
+```sql
+ALTER TABLE public.organizations 
+  ADD COLUMN subscription_type text NOT NULL DEFAULT 'trial';
 ```
 
-**Abordagem de email escolhida**: Como o projeto nao tem servico de email transacional (Resend/SendGrid), usaremos `supabase.auth.admin.updateUserById` para definir a nova senha e incluiremos na mensagem de retorno que a senha foi resetada. O canal principal de notificacao continua sendo o WhatsApp. Para o email, faremos uma tentativa via `resetPasswordForEmail` que usara o email nativo do Supabase (se configurado).
+Migrar dados existentes:
+- Organizações com `subscription_status = 'trial'` recebem `subscription_type = 'trial'`
+- Organizações com `subscription_status = 'active'` recebem `subscription_type = 'monthly'`
+- Demais mantêm `subscription_type = 'trial'`
 
+### 2. Atualizar StatusBadges.tsx
+- Renomear `SubscriptionStatusBadge` para refletir o tipo de plano
+- Criar novo componente `SubscriptionTypeBadge` que mostra Teste/Mensal/Anual
+- Manter lógica de dias restantes do trial no badge de tipo
+
+### 3. Atualizar Organizations.tsx
+- Coluna "Assinatura": usar `subscription_type` + `trial_ends_at` para exibir tipo + dias
+- Popover da coluna "Assinatura": opções Teste, Mensal, Anual
+- Coluna "Status": manter como está (já mostra Ativo/Pendente/Suspenso/Cancelado)
+- `handleChangeSubscription`: atualizar `subscription_type` em vez de `subscription_status`
+- Ao mudar para "Mensal" ou "Anual", automaticamente setar `subscription_status = 'active'`
+- Ao mudar para "Teste", manter/resetar `trial_ends_at`
+
+### 4. Atualizar Hooks e Tipos
+- Adicionar `subscription_type` ao tipo `OrganizationWithStats`
+- Atualizar `useSubscriptionStatus` para considerar o novo campo
+- Atualizar `SubscribersTab` e `ExpiredTrialsWidget` para usar a nova estrutura
+
+### 5. Arquivos Afetados
+- `supabase/migrations/` - nova migração
+- `src/components/super-admin/StatusBadges.tsx` - novo badge de tipo
+- `src/pages/super-admin/Organizations.tsx` - coluna e popover
+- `src/hooks/useOrganizations.ts` - tipo atualizado
+- `src/hooks/useSubscriptionStatus.ts` - lógica ajustada
+- `src/components/super-admin/SubscribersTab.tsx` - badge atualizado
+- `src/components/super-admin/ExpiredTrialsWidget.tsx` - badge atualizado
+- `src/integrations/supabase/types.ts` - tipos regenerados
