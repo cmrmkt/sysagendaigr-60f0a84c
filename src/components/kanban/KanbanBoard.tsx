@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -152,6 +152,35 @@ const KanbanBoard = ({ eventId, onBackgroundChange }: KanbanBoardProps) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile();
+
+  // Pinch-to-zoom support
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(100);
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDistRef.current = Math.hypot(dx, dy);
+      pinchStartZoomRef.current = zoomLevel;
+    }
+  }, [zoomLevel]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartDistRef.current !== null) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      const scale = dist / pinchStartDistRef.current;
+      const newZoom = Math.round(Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStartZoomRef.current * scale)));
+      setZoomLevel(newZoom);
+    }
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    pinchStartDistRef.current = null;
+  }, []);
 
   // Hooks must be called unconditionally - define sensors first
   const touchSensor = useSensor(TouchSensor, {
@@ -414,12 +443,14 @@ const KanbanBoard = ({ eventId, onBackgroundChange }: KanbanBoardProps) => {
           {/* Scrollable container - this is the "blue background" that handles drag-to-scroll */}
           <div 
             ref={(el) => {
-              // Assign to both refs
               (columnsContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
               (scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
             }}
             className="absolute inset-0 overflow-x-auto overflow-y-auto scrollbar-hide"
             style={{ touchAction: 'pan-y' }}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             {/* Wrapper to handle zoom scaling properly */}
             <div 
