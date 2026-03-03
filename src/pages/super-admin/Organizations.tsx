@@ -255,11 +255,9 @@ const Organizations = () => {
   const handleChangeSubscription = async (orgId: string, newType: string) => {
     try {
       const updateData: any = { subscription_type: newType };
-      // Ao mudar para Mensal ou Anual, setar subscription_status como active
       if (newType === "monthly" || newType === "annual") {
         updateData.subscription_status = "active";
       }
-      // Ao mudar para Teste, resetar trial_ends_at para 7 dias a partir de agora
       if (newType === "trial") {
         updateData.subscription_status = "trial";
         updateData.trial_ends_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -273,6 +271,31 @@ const Organizations = () => {
       queryClient.invalidateQueries({ queryKey: ["organizations"] });
     } catch {
       toast.error("Erro ao atualizar assinatura");
+    }
+  };
+
+  const handleExtendTrial = async (orgId: string, days: number) => {
+    try {
+      // Find the org to get current trial_ends_at
+      const org = organizations?.find((o) => o.id === orgId);
+      const baseDate = org?.trial_ends_at ? new Date(org.trial_ends_at) : new Date();
+      // If trial already expired, extend from today instead
+      const startFrom = baseDate < new Date() ? new Date() : baseDate;
+      const newDate = new Date(startFrom.getTime() + days * 24 * 60 * 60 * 1000);
+      
+      const { error } = await supabase
+        .from("organizations")
+        .update({
+          trial_ends_at: newDate.toISOString(),
+          subscription_status: "trial",
+          subscription_type: "trial",
+        })
+        .eq("id", orgId);
+      if (error) throw error;
+      toast.success(`Teste prorrogado por +${days} dias`);
+      queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    } catch {
+      toast.error("Erro ao prorrogar teste");
     }
   };
 
@@ -444,7 +467,7 @@ const Organizations = () => {
                             />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-44 p-2" align="start">
+                        <PopoverContent className="w-52 p-2" align="start">
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground mb-2">Alterar assinatura</p>
                             {["trial", "monthly", "annual"].map((t) => (
@@ -457,6 +480,27 @@ const Organizations = () => {
                                 <SubscriptionTypeBadge type={t} />
                               </button>
                             ))}
+                            {/* Quick trial extension buttons */}
+                            {(org.subscription_type || "trial") === "trial" && (
+                              <>
+                                <div className="border-t my-2" />
+                                <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  Prorrogar teste
+                                </p>
+                                <div className="grid grid-cols-3 gap-1">
+                                  {[7, 15, 30].map((days) => (
+                                    <button
+                                      key={days}
+                                      onClick={() => handleExtendTrial(org.id, days)}
+                                      className="px-2 py-1.5 text-xs font-medium rounded-md bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
+                                    >
+                                      +{days}d
+                                    </button>
+                                  ))}
+                                </div>
+                              </>
+                            )}
                           </div>
                         </PopoverContent>
                       </Popover>
