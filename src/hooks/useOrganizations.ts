@@ -18,6 +18,7 @@ export interface OrganizationWithStats {
   postal_code: string | null;
   status: string;
   subscription_status: string;
+  subscription_type: string;
   subscription_amount: number | null;
   billing_day: number | null;
   trial_ends_at: string | null;

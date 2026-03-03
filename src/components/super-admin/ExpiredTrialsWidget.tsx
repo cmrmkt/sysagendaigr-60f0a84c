@@ -31,9 +31,9 @@ const ExpiredTrialsWidget = ({ organizations }: ExpiredTrialsWidgetProps) => {
   const expiredOrgs = organizations?.filter((org) => {
     if (!org.trial_ends_at) return false;
     if (!isPast(parseISO(org.trial_ends_at))) return false;
-    return org.subscription_status === "trial" || 
-           org.subscription_status === "inactive" || 
-           org.subscription_status === "cancelled";
+    // Usa subscription_type se disponível, senão fallback para subscription_status
+    const subType = (org as any).subscription_type || org.subscription_status;
+    return subType === "trial";
   }) || [];
 
   const handleExtend = async (orgId: string) => {

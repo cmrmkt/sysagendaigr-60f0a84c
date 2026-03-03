@@ -139,6 +139,81 @@ export const SubscriptionStatusBadge = ({ status, trialEndsAt, className }: Subs
   );
 };
 
+// Badge para tipo de assinatura (Teste/Mensal/Anual)
+interface SubscriptionTypeBadgeProps {
+  type: string;
+  trialEndsAt?: string | null;
+  className?: string;
+}
+
+export const SubscriptionTypeBadge = ({ type, trialEndsAt, className }: SubscriptionTypeBadgeProps) => {
+  const getTypeConfig = (type: string) => {
+    if (type === "trial") {
+      let trialDaysLeft = 0;
+      let trialExpired = false;
+
+      if (trialEndsAt) {
+        const trialEnd = new Date(trialEndsAt);
+        const now = new Date();
+        const trialEndDay = new Date(trialEnd.getFullYear(), trialEnd.getMonth(), trialEnd.getDate());
+        const todayDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        trialDaysLeft = differenceInDays(trialEndDay, todayDay);
+        trialExpired = trialDaysLeft < 0;
+      }
+
+      if (trialExpired) {
+        return {
+          label: "Teste expirado",
+          variant: "destructive" as const,
+          className: "",
+        };
+      }
+      if (trialDaysLeft === 0) {
+        return {
+          label: "Teste (último dia)",
+          variant: "secondary" as const,
+          className: "bg-orange-500 hover:bg-orange-600 text-white",
+        };
+      }
+      return {
+        label: `Teste (${trialDaysLeft}d)`,
+        variant: "secondary" as const,
+        className: trialDaysLeft <= 3
+          ? "bg-orange-500 hover:bg-orange-600 text-white"
+          : "bg-blue-500 hover:bg-blue-600 text-white",
+      };
+    }
+
+    switch (type) {
+      case "monthly":
+        return {
+          label: "Mensal",
+          variant: "default" as const,
+          className: "bg-green-500 hover:bg-green-600 text-white",
+        };
+      case "annual":
+        return {
+          label: "Anual",
+          variant: "default" as const,
+          className: "bg-emerald-700 hover:bg-emerald-800 text-white",
+        };
+      default:
+        return {
+          label: type,
+          variant: "outline" as const,
+          className: "",
+        };
+    }
+  };
+
+  const config = getTypeConfig(type);
+
+  return (
+    <Badge variant={config.variant} className={cn(config.className, className)}>
+      {config.label}
+    </Badge>
+  );
+};
 interface InvoiceStatusBadgeProps {
   status: string;
   className?: string;
