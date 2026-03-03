@@ -55,7 +55,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { OrganizationStatusBadge, SubscriptionStatusBadge } from "@/components/super-admin/StatusBadges";
+import { OrganizationStatusBadge, SubscriptionTypeBadge } from "@/components/super-admin/StatusBadges";
 import {
   Popover,
   PopoverContent,
@@ -252,11 +252,21 @@ const Organizations = () => {
     }
   };
 
-  const handleChangeSubscription = async (orgId: string, newStatus: string) => {
+  const handleChangeSubscription = async (orgId: string, newType: string) => {
     try {
+      const updateData: any = { subscription_type: newType };
+      // Ao mudar para Mensal ou Anual, setar subscription_status como active
+      if (newType === "monthly" || newType === "annual") {
+        updateData.subscription_status = "active";
+      }
+      // Ao mudar para Teste, resetar trial_ends_at para 7 dias a partir de agora
+      if (newType === "trial") {
+        updateData.subscription_status = "trial";
+        updateData.trial_ends_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      }
       const { error } = await supabase
         .from("organizations")
-        .update({ subscription_status: newStatus })
+        .update(updateData)
         .eq("id", orgId);
       if (error) throw error;
       toast.success("Assinatura atualizada com sucesso");
@@ -428,8 +438,8 @@ const Organizations = () => {
                       <Popover>
                         <PopoverTrigger asChild>
                           <button className="cursor-pointer hover:opacity-80 transition-opacity">
-                            <SubscriptionStatusBadge 
-                              status={org.subscription_status} 
+                            <SubscriptionTypeBadge 
+                              type={org.subscription_type || "trial"} 
                               trialEndsAt={org.trial_ends_at}
                             />
                           </button>
@@ -437,14 +447,14 @@ const Organizations = () => {
                         <PopoverContent className="w-44 p-2" align="start">
                           <div className="space-y-1">
                             <p className="text-xs font-medium text-muted-foreground mb-2">Alterar assinatura</p>
-                            {["active", "trial", "inactive", "cancelled"].map((s) => (
+                            {["trial", "monthly", "annual"].map((t) => (
                               <button
-                                key={s}
-                                disabled={s === org.subscription_status}
-                                onClick={() => handleChangeSubscription(org.id, s)}
+                                key={t}
+                                disabled={t === (org.subscription_type || "trial")}
+                                onClick={() => handleChangeSubscription(org.id, t)}
                                 className="w-full text-left px-2 py-1.5 text-sm rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
                               >
-                                <SubscriptionStatusBadge status={s} />
+                                <SubscriptionTypeBadge type={t} />
                               </button>
                             ))}
                           </div>

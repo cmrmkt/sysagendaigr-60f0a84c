@@ -593,6 +593,7 @@ export type Database = {
           status: string
           subscription_amount: number | null
           subscription_status: string
+          subscription_type: string
           suspended_at: string | null
           suspended_reason: string | null
           tax_id: string | null
@@ -621,6 +622,7 @@ export type Database = {
           status?: string
           subscription_amount?: number | null
           subscription_status?: string
+          subscription_type?: string
           suspended_at?: string | null
           suspended_reason?: string | null
           tax_id?: string | null
@@ -649,6 +651,7 @@ export type Database = {
           status?: string
           subscription_amount?: number | null
           subscription_status?: string
+          subscription_type?: string
           suspended_at?: string | null
           suspended_reason?: string | null
           tax_id?: string | null
