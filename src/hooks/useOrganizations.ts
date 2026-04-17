@@ -49,6 +49,12 @@ export const useOrganizations = () => {
 
       if (error) throw error;
 
+      // Buscar último login real de cada organização (via auth.users.last_sign_in_at)
+      const { data: lastLogins } = await supabase.rpc("get_org_last_logins");
+      const lastLoginMap = new Map<string, string>(
+        (lastLogins || []).map((row: any) => [row.organization_id, row.last_login_at])
+      );
+
       // Para cada org, buscar contagens
       const orgsWithStats: OrganizationWithStats[] = await Promise.all(
         (orgs || []).map(async (org) => {

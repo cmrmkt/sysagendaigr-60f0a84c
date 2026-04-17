@@ -911,6 +911,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_org_last_logins: {
+        Args: never
+        Returns: {
+          last_login_at: string
+          organization_id: string
+        }[]
+      }
       get_user_org: { Args: { _user_id: string }; Returns: string }
       has_role: {
         Args: {
