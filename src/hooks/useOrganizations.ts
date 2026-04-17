@@ -86,6 +86,7 @@ export const useOrganizations = () => {
 
           return {
             ...org,
+            last_login_at: lastLoginMap.get(org.id) ?? org.last_login_at ?? null,
             users_count: usersCount || 0,
             events_count: eventsCount || 0,
             pending_invoices: pendingCount || 0,
